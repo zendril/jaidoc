@@ -76,6 +76,7 @@ Command :: enum_flags u8 {
         if message.kind == .COMPLETE break;
     }
     compiler_end_intercept(sample_workspace);
+    JaidocProcessor.process_finish(sample_jaidoc_options);
 
     // Tell the compiler that this build script itself doesn't produce an executable.
     // This prevents the default "Target Program" (Workspace 2) from trying to link.

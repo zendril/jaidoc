@@ -11,15 +11,18 @@ Jaidoc_Options :: struct {
     // ... other options can be added later ...
 }
 
+num_messages := 0;
+
 // This is the core logic extracted from the plugin
 process_message :: (message: *Message, options: Jaidoc_Options) {
-if message.kind == {
+    num_messages += 1;
+    if message.kind == {
       case .PHASE;
         mp := cast(*Message_Phase) message;
         print("Now in phase: %\n", mp.phase);
 
         if mp.phase == .PRE_WRITE_EXECUTABLE {
-            print(".... The executable name will be: '%'\n", mp.executable_name);
+            print(".... The executable name will be: '%\n", mp.executable_name);
         }
         
       case .TYPECHECKED;
@@ -57,4 +60,8 @@ if message.kind == {
       case .COMPLETE;
         print("Got COMPLETE.\n");
     }
+}
+
+process_finish :: (options: Jaidoc_Options) {
+    print("JaidocProcessor finished, which saw % messages.\n", num_messages);
 }

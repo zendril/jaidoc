@@ -47,13 +47,13 @@ message :: (_p: *Metaprogram_Plugin, message: *Message) {
     // Use the library's process_message function
     JaidocProcessor.process_message(message, p.options);
     
-    num_messages += 1;
+
 }
 
 // 'finish' is called after all messages are processed. You can use this to
 // generate an output report, write to a file, etc.
 finish :: (p: *Metaprogram_Plugin) {
-    print("Finishing Example_Plugin, which saw % messages.\n", num_messages);
+    JaidocProcessor.process_finish(cast(*Jaidoc_Plugin)p.options);
 }
 
 
@@ -66,8 +66,6 @@ shutdown :: (_p: *Plugin) {
 // #load "../generator.jai";
 
 #scope_module
-
-num_messages := 0;
 
 #import "Basic";
 #import "String";

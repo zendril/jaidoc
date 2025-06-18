@@ -2,6 +2,20 @@
 
 starter := 0;
 
+// Public Struct: Represents a 2D point
+Point :: struct {
+    x: float;
+    y: float;
+}
+
+// Public Enum: Represents basic colors
+Color :: enum {
+    RED;
+    GREEN;
+    BLUE;
+    YELLOW;
+}
+
 // Public procedure 1: Adds two integers
 sum :: (a: int, b: int) -> int {
     return a + b;
@@ -26,4 +40,14 @@ main :: () {
     print("Sample App: Execution finished.\n");
 
     print("Starter: %\n", starter);
+
+    // Example usage of public struct 'Point'
+    p: Point;
+    p.x = 10.0;
+    p.y = 20.0;
+    print("Point coordinates: (%, %)\n", p.x, p.y);
+
+    // Example usage of public enum 'Color'
+    my_color := Color.GREEN;
+    print("My favorite color is: %\n", my_color);
 }
