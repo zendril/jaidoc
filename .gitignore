@@ -1,3 +1,6 @@
 reference
 target
 .build
+src/sample/*.exe
+src/sample/*.pdb
+
