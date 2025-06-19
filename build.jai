@@ -62,6 +62,7 @@ Command :: enum_flags u8 {
     // Configure Jaidoc for this specific workspace
     sample_jaidoc_options: JaidocProcessor.Jaidoc_Options;
     sample_jaidoc_options.output_directory = "target/docs/";
+    sample_jaidoc_options.debug = true;
 
 
     compiler_begin_intercept(sample_workspace);

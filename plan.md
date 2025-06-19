@@ -62,9 +62,9 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
         - [x] Update `jaidoc_plugin/jaidoc.jai` to use the library.
         - [x] Update `build.jai` to call the library directly when running `jai build.jai`.
         - [x] Ensure both `jai build.jai` and `jai src\sample\sample.jai +jaidoc` work correctly.
-    - [ ] Expand `src/sample/sample.jai` to include:
-        - [ ] At least one public struct.
-        - [ ] At least one public enum.
+    - [x] Expand `src/sample/sample.jai` to include:
+        - [x] At least one public struct.
+        - [x] At least one public enum.
 - **Deliverables:**
     - Updated `jaidoc_plugin` capable of extracting and printing metaprogramming data.
     - Updated `src/sample/sample.jai` with diverse public declarations.

@@ -21,6 +21,7 @@ get_plugin :: () -> *Plugin {
 
     // Initialize default options
     p.options.output_directory = "docs_from_plugin";
+    p.options.debug = false;
 
     return p;   
 }

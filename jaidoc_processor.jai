@@ -8,8 +8,15 @@
 
 Jaidoc_Options :: struct {
     output_directory: string = "docs";
+    debug: bool = false;
     // ... other options can be added later ...
 
+}
+
+debug_print :: (options: Jaidoc_Options, fmt: string, args: ..Any) {
+    if options.debug {
+        print(fmt, args);
+    }
 }
 
 num_messages := 0;
@@ -22,12 +29,12 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
     if message.kind == {
       case .PHASE;
         mp := cast(*Message_Phase) message;
-        // print("Now in phase: %\n", mp.phase);
+        debug_print(options, "Now in phase: %\n", mp.phase);
         
       case .FILE;
         mf := cast(*Message_File) message;
         if mf.enclosing_import != null && mf.enclosing_import.module_type == .MAIN_PROGRAM {
-            print("Now in file: %\n", mf.fully_pathed_filename);
+            debug_print(options, "Now in file: %\n", mf.fully_pathed_filename);
             array_add(*target_files, copy_string(mf.fully_pathed_filename));
         }
 
@@ -46,15 +53,15 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
             if array_find(target_files, filename) {
 
 
-                print("File: %\n", filename);
+                debug_print(options, "File: %\n", filename);
 
                 declname := code_declaration.entry.name;
-                print("Declaration: %\n", declname);
+                debug_print(options, "Declaration: %\n", declname);
 
                 if code_declaration.expression {
                     // if code_declaration.flags & .IS_CONSTANT {
                         expr := code_declaration.expression;
-                        print("code_declaration.expression.kind: %\n", expr.kind);
+                        debug_print(options, "code_declaration.expression.kind: %\n", expr.kind);
                     // }
                     
                 }
@@ -63,11 +70,11 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
         }
         
       case .COMPLETE;
-        print("Got COMPLETE.\n");
+        debug_print(options, "Got COMPLETE.\n");
     }
 }
 
 process_finish :: (options: Jaidoc_Options) {
-    print("JaidocProcessor finished, which saw % messages.\n", num_messages);
+    debug_print(options, "JaidocProcessor finished, which saw % messages.\n", num_messages);
     array_free(target_files);
 }
