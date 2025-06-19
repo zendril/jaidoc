@@ -15,6 +15,7 @@ get_plugin :: () -> *Plugin {
 
     p.message  = message;
     p.shutdown = shutdown;
+    p.init = init;
     // p.before_intercept = before_intercept;
     p.finish = finish;
     //p.add_source = add_source;
@@ -44,8 +45,6 @@ message :: (_p: *Metaprogram_Plugin, message: *Message) {
     
     // Use the library's process_message function
     JaidocProcessor.process_message(message, p.options);
-    
-
 }
 
 // 'finish' is called after all messages are processed. You can use this to
@@ -56,12 +55,28 @@ finish :: (_p: *Metaprogram_Plugin) {
 }
 
 
+init :: (_p: *Metaprogram_Plugin, options: [] string) -> bool {
+    p := cast(*Jaidoc_Plugin) _p;
+    
+    cursor := 0;
+    while cursor < options.count {
+        s := options[cursor];
+        if s == {
+          case "-verbose";
+            p.options.debug = true;
+            cursor += 1;
+          case;
+            log_error("Command line for plugin Jaidoc_Plugin: Unknown argument '%'.\n", s);
+            return false;
+        }
+    }
+    return true;
+}
+
 shutdown :: (_p: *Plugin) {
     p := cast(*Jaidoc_Plugin) _p;
     free(p);
 }
-
-// #load "../generator.jai";
 
 #scope_module
 

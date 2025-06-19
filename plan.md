@@ -75,8 +75,8 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
 - **Objective:** Generate basic Markdown documentation focusing on the main screen layout.
 - **Tasks:**
     - [ ] Design the Markdown structure based on the "main-screen" mockup from `@reference/figma-mockups`.
-    - [ ] Modify `jaidoc_plugin` to process the extracted metaprogramming data and generate Markdown files.
-    - [ ] Output Markdown files to a designated directory (e.g., `target/docs/md`).
+    - [ ] Modify `jaidoc_processor` to process the extracted metaprogramming data and generate Markdown files.
+    - [ ] Output Markdown files to a directory specified by Jaidoc_Options.output_directory.
     - [ ] The initial Markdown should cover:
         - [ ] A main index page.
         - [ ] Separate pages or sections for modules/files.
