@@ -9,9 +9,12 @@
 Jaidoc_Options :: struct {
     output_directory: string = "docs";
     // ... other options can be added later ...
+
 }
 
 num_messages := 0;
+target_files: [..]string;
+
 
 // This is the core logic extracted from the plugin
 process_message :: (message: *Message, options: Jaidoc_Options) {
@@ -19,42 +22,44 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
     if message.kind == {
       case .PHASE;
         mp := cast(*Message_Phase) message;
-        print("Now in phase: %\n", mp.phase);
-
-        if mp.phase == .PRE_WRITE_EXECUTABLE {
-            print(".... The executable name will be: '%\n", mp.executable_name);
-        }
+        // print("Now in phase: %\n", mp.phase);
         
+      case .FILE;
+        mf := cast(*Message_File) message;
+        if mf.enclosing_import != null && mf.enclosing_import.module_type == .MAIN_PROGRAM {
+            print("Now in file: %\n", mf.fully_pathed_filename);
+            array_add(*target_files, copy_string(mf.fully_pathed_filename));
+        }
+
+        // TODO support file_message.from_a_string
+
       case .TYPECHECKED;
         tc := cast(*Message_Typechecked) message;
-        // print("Typechecked: % declarations, % procedure headers, % procedure bodies, % structs, % others.\n", tc.declarations.count, tc.procedure_headers.count, tc.procedure_bodies.count, tc.structs.count, tc.others.count);
         
         for typechecked: tc.declarations {
-            decl := typechecked.expression;
 
-            // if !(decl.flags & .IS_GLOBAL) || !decl.expression continue;
-            // if !decl.location.enclosing_load || !decl.location.enclosing_load.enclosing_import continue;
+            
+            // code_declaration is Compiler.Code_Node
+            code_declaration := typechecked.expression;
 
-            filename := decl.location.enclosing_load.fully_pathed_filename;
-            if ends_with(filename, "sample.jai") {
+            filename := code_declaration.location.enclosing_load.fully_pathed_filename;
+            if array_find(target_files, filename) {
 
 
                 print("File: %\n", filename);
 
-                declname := decl.entry.name;
+                declname := code_declaration.entry.name;
                 print("Declaration: %\n", declname);
 
-                print("Kind: %\n", decl.entry.base.kind);
-
-                print("Type: %\n", <<decl.type);
-
-                print("Name: %\n", decl.name);
+                if code_declaration.expression {
+                    // if code_declaration.flags & .IS_CONSTANT {
+                        expr := code_declaration.expression;
+                        print("code_declaration.expression.kind: %\n", expr.kind);
+                    // }
+                    
+                }
 
             }
-            //print("Module: %\n", module_name);
-            // module := find_or_add(*p.modules, module_name);
-
-            // array_add(module, decl);
         }
         
       case .COMPLETE;
@@ -64,4 +69,5 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
 
 process_finish :: (options: Jaidoc_Options) {
     print("JaidocProcessor finished, which saw % messages.\n", num_messages);
+    array_free(target_files);
 }

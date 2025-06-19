@@ -11,6 +11,9 @@ Command :: enum_flags u8 {
 }
 
 #run {
+    // context.print_style.default_format_struct.use_long_form_if_more_than_this_many_members = -1;
+    // context.print_style.default_format_struct.use_newlines_if_long_form = true;
+
     commands := parse_commands();
     print("Commands: %\n", commands);
     
@@ -60,11 +63,9 @@ Command :: enum_flags u8 {
     sample_jaidoc_options: JaidocProcessor.Jaidoc_Options;
     sample_jaidoc_options.output_directory = "target/docs/";
 
-    // intercept_flags := Intercept_Flags; // Or be specific
-    // compiler_begin_intercept(sample_workspace, cast(Intercept_Flags) intercept_flags);
 
     compiler_begin_intercept(sample_workspace);
-    add_build_file(tprint("%/src/sample/sample.jai", #filepath), sample_workspace);
+    add_build_file(tprint("%src/sample/sample.jai", #filepath), sample_workspace);
 
     while true {
         message := compiler_wait_for_message();
