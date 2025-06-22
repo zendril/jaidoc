@@ -65,6 +65,11 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
     - [x] Expand `src/sample/sample.jai` to include:
         - [x] At least one public struct.
         - [x] At least one public enum.
+    - [x] Build a data model for the documentation:
+        - [x] Track imported modules.
+        - [x] For each module, track the files it contains.
+        - [x] For each file, track declarations (variables, procedures, enums, unions).
+        - [x] This model will be the input for the Markdown generation in Checkpoint 4.
 - **Deliverables:**
     - Updated `jaidoc_plugin` capable of extracting and printing metaprogramming data.
     - Updated `src/sample/sample.jai` with diverse public declarations.
