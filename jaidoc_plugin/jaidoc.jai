@@ -21,8 +21,8 @@ get_plugin :: () -> *Plugin {
     //p.add_source = add_source;
 
     // Initialize default options
-    p.options.output_directory = "docs_from_plugin";
-    p.options.debug = false;
+    p.options.output_directory = "target/docs";
+    p.options.debug = true; // Enable debug by default when using plugin
 
     return p;   
 }
@@ -58,6 +58,12 @@ finish :: (_p: *Metaprogram_Plugin) {
 init :: (_p: *Metaprogram_Plugin, options: [] string) -> bool {
     p := cast(*Jaidoc_Plugin) _p;
     
+    // Get the project root - use the current working directory where jai was invoked
+    p.options.project_root = get_working_directory();
+    JaidocProcessor.debug_print(p.options, "Plugin: Detected project root: %", p.options.project_root);
+    JaidocProcessor.debug_print(p.options, "Plugin: Current working directory: %", get_working_directory());
+    JaidocProcessor.debug_print(p.options, "Plugin: Project root is same as current working directory: %", p.options.project_root == get_working_directory());
+    
     cursor := 0;
     while cursor < options.count {
         s := options[cursor];
@@ -65,6 +71,13 @@ init :: (_p: *Metaprogram_Plugin, options: [] string) -> bool {
           case "-verbose";
             p.options.debug = true;
             cursor += 1;
+          case "-output";
+            if cursor + 1 >= options.count {
+                log_error("Command line for plugin Jaidoc_Plugin: -output requires a directory argument.\n");
+                return false;
+            }
+            p.options.output_directory = options[cursor + 1];
+            cursor += 2;
           case;
             log_error("Command line for plugin Jaidoc_Plugin: Unknown argument '%'.\n", s);
             return false;

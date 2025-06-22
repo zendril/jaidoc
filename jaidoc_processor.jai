@@ -191,7 +191,14 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
             filename := mf.fully_pathed_filename;
             project_root := options.project_root; // Use the new project_root field
             
-            if begins_with(filename, project_root) {
+            // Simple path comparison - convert both to lowercase and check if filename contains project_root
+            // This handles path separator differences on Windows
+            lower_filename := to_lower_copy(filename);
+            lower_project_root := to_lower_copy(project_root);
+            
+            debug_print(options, "Comparing paths: filename='%' contains project_root='%'?\n", lower_filename, lower_project_root);
+            
+            if contains(lower_filename, lower_project_root) {
                 debug_print(options, "Found local module file: %\n", filename);
                 
                 // Extract module name from the import
