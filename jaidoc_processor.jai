@@ -11,6 +11,7 @@
 
 Jaidoc_Options :: struct {
     output_directory: string = "docs";
+    project_root: string = "";  // Root directory of the project being documented
     debug: bool = false;
     // ... other options can be added later ...
 
@@ -174,6 +175,7 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
         mf := cast(*Message_File) message;
         if mf.enclosing_import != null && mf.enclosing_import.module_type == .MAIN_PROGRAM {
             debug_print(options, "Now in file (main program): %\n", mf.fully_pathed_filename);
+            debug_print(options, "--- enclosing_import.module_name %\n", mf.enclosing_import.module_name);
             array_add(*target_files, copy_string(mf.fully_pathed_filename));
             
             // Create file info for main program files
@@ -182,11 +184,12 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
 
         if mf.enclosing_import != null && mf.enclosing_import.module_type == .FILE {
             debug_print(options, "Now in file (file): %\n", mf.fully_pathed_filename);
+            debug_print(options, "--- enclosing_import.module_name %\n", mf.enclosing_import.module_name);
             
             // Check if this is a local module (not standard library)
             // We consider it local if it's in a subdirectory of our project
             filename := mf.fully_pathed_filename;
-            project_root := "C:/devhome/projects/github/zendril/jaidoc/"; // TODO: Make this configurable
+            project_root := options.project_root; // Use the new project_root field
             
             if begins_with(filename, project_root) {
                 debug_print(options, "Found local module file: %\n", filename);
