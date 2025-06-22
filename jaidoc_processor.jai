@@ -6,6 +6,9 @@
 #import "File";
 #import "String";
 
+
+#import "File_Utilities";
+
 Jaidoc_Options :: struct {
     output_directory: string = "docs";
     debug: bool = false;
@@ -174,7 +177,7 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
             array_add(*target_files, copy_string(mf.fully_pathed_filename));
             
             // Create file info for main program files
-            find_or_create_file_info(mf.fully_pathed_filename);
+            find_or_create_file_info(mf.fully_pathed_filename, "");
         }
 
         if mf.enclosing_import != null && mf.enclosing_import.module_type == .FILE {
@@ -193,9 +196,11 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
                     module_name := mf.enclosing_import.module_name;
                     debug_print(options, "Module name: %\n", module_name);
                     
+                    // Add to target files so declarations get processed
+                    array_add(*target_files, copy_string(filename));
+                    
                     // Create or find module info and add this file
                     find_or_create_file_info(filename, module_name);
-                    array_add(*target_files, copy_string(filename));
                 }
             }
         }
@@ -282,9 +287,165 @@ print_documentation_summary :: (options: Jaidoc_Options) {
     }
 }
 
+// Helper function to sanitize file paths for Markdown filenames
+sanitize_path_for_markdown :: (path: string) -> string {
+    result := path;
+    // Simple character replacement using sprint
+    result = sprint("%", result);
+    // Replace problematic characters with underscores manually
+    // This is a simplified approach
+    return result;
+}
+
+// New function to generate markdown documentation
+generate_markdown_docs :: (options: Jaidoc_Options) {
+    // Create output directory
+    if !file_exists(options.output_directory) {
+        make_directory_if_it_does_not_exist(options.output_directory, true);
+        debug_print(options, "Created output directory: %\n", options.output_directory);
+    }
+
+    // Generate and write index.md file
+    index_file_path := sprint("%/index.md", options.output_directory);
+    
+    // Build index content step by step
+    index_lines: [..] string;
+    array_add(*index_lines, "# Jaidoc Documentation");
+    array_add(*index_lines, "");
+    array_add(*index_lines, "## Main Program Files");
+    array_add(*index_lines, "");
+    
+    if doc_model.main_files.count == 0 {
+        array_add(*index_lines, "No main program files found.");
+    } else {
+        for file_info: doc_model.main_files {
+            file_md_name := "file_main.md";
+            link_line := sprint("- [%](%)", file_info.path, file_md_name);
+            array_add(*index_lines, link_line);
+        }
+    }
+    
+    array_add(*index_lines, "");
+    array_add(*index_lines, "## Modules");
+    array_add(*index_lines, "");
+    
+    if doc_model.modules.count == 0 {
+        array_add(*index_lines, "No modules found.");
+    } else {
+        for module_info: doc_model.modules {
+            link_line := sprint("- [%](module_%.md)", module_info.name, module_info.name);
+            array_add(*index_lines, link_line);
+        }
+    }
+    
+    // Join all lines with newlines
+    index_content := join(..index_lines, "\n");
+    index_content = sprint("%\n", index_content); // Add final newline
+    
+    success := write_entire_file(index_file_path, index_content);
+    if success {
+        debug_print(options, "Generated index.md at %\n", index_file_path);
+    } else {
+        debug_print(options, "Failed to create index.md at %\n", index_file_path);
+    }
+    
+    // Generate simple documentation for main files
+    for file_info: doc_model.main_files {
+        file_lines: [..] string;
+        file_header := sprint("# File: %", file_info.path);
+        array_add(*file_lines, file_header);
+        array_add(*file_lines, "");
+        array_add(*file_lines, "## Declarations");
+        array_add(*file_lines, "");
+        
+        if file_info.declarations.count == 0 {
+            array_add(*file_lines, "No declarations found in this file.");
+        } else {
+            for decl: file_info.declarations {
+                decl_header := sprint("### % (%)", decl.name, decl.kind);
+                decl_type := sprint("- **Type**: %", decl.type_string);
+                decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                decl_public := sprint("- **Public**: %", decl.is_public);
+                
+                array_add(*file_lines, decl_header);
+                array_add(*file_lines, decl_type);
+                array_add(*file_lines, decl_location);
+                array_add(*file_lines, decl_public);
+                array_add(*file_lines, "");
+            }
+        }
+        
+        // Join all lines with newlines
+        file_content := join(..file_lines, "\n");
+        file_content = sprint("%\n", file_content); // Add final newline
+        
+        // Write to file
+        file_output_path := sprint("%/file_main.md", options.output_directory);
+        success := write_entire_file(file_output_path, file_content);
+        if success {
+            debug_print(options, "Generated file_main.md at %\n", file_output_path);
+        } else {
+            debug_print(options, "Failed to create file_main.md at %\n", file_output_path);
+        }
+    }
+
+    // Generate simple documentation for modules  
+    for module_info: doc_model.modules {
+        module_lines: [..] string;
+        
+        module_header := sprint("# Module: %", module_info.name);
+        import_path_line := sprint("Import Path: `%`", module_info.import_path);
+        
+        array_add(*module_lines, module_header);
+        array_add(*module_lines, "");
+        array_add(*module_lines, import_path_line);
+        array_add(*module_lines, "");
+        
+        for file_info: module_info.files {
+            file_header := sprint("## File: %", file_info.path);
+            array_add(*module_lines, file_header);
+            array_add(*module_lines, "");
+            
+            if file_info.declarations.count == 0 {
+                array_add(*module_lines, "No declarations found in this file.");
+            } else {
+                for decl: file_info.declarations {
+                    decl_header := sprint("### % (%)", decl.name, decl.kind);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*module_lines, decl_header);
+                    array_add(*module_lines, decl_type);
+                    array_add(*module_lines, decl_location);
+                    array_add(*module_lines, decl_public);
+                    array_add(*module_lines, "");
+                }
+            }
+        }
+        
+        // Join all lines with newlines
+        module_content := join(..module_lines, "\n");
+        module_content = sprint("%\n", module_content); // Add final newline
+        
+        // Write to file
+        module_output_path := sprint("%/module_%.md", options.output_directory, module_info.name);
+        success := write_entire_file(module_output_path, module_content);
+        if success {
+            debug_print(options, "Generated module_% successfully\n", module_info.name);
+            debug_print(options, "  Path: %\n", module_output_path);
+        } else {
+            debug_print(options, "Failed to create module_%\n", module_info.name);
+            debug_print(options, "  Path: %\n", module_output_path);
+        }
+    }
+}
+
 process_finish :: (options: Jaidoc_Options) {
     debug_print(options, "JaidocProcessor finished, which saw % messages.\n", num_messages);
     
+    generate_markdown_docs(options); // Call the new function here
+
     // Clean up
     array_free(target_files);
     
