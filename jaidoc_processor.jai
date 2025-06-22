@@ -191,14 +191,34 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
             filename := mf.fully_pathed_filename;
             project_root := options.project_root; // Use the new project_root field
             
-            // Simple path comparison - convert both to lowercase and check if filename contains project_root
-            // This handles path separator differences on Windows
-            lower_filename := to_lower_copy(filename);
-            lower_project_root := to_lower_copy(project_root);
+            debug_print(options, "Checking if '%' is under project root '%'\n", filename, project_root);
             
-            debug_print(options, "Comparing paths: filename='%' contains project_root='%'?\n", lower_filename, lower_project_root);
+            // Check if filename starts with project_root (case-insensitive, handle path separators)
+            is_local := false;
+            if project_root.count > 0 && filename.count > project_root.count {
+                // Simple check: compare the beginning of the paths
+                match := true;
+                for i: 0..project_root.count-1 {
+                    char_file := filename[i];
+                    char_root := project_root[i];
+                    
+                    // Handle path separator differences (/ vs \)
+                    if char_file == #char "/" char_file = #char "\\";
+                    if char_root == #char "/" char_root = #char "\\";
+                    
+                    // Case insensitive comparison
+                    if char_file >= #char "A" && char_file <= #char "Z" char_file += 32; // to lowercase
+                    if char_root >= #char "A" && char_root <= #char "Z" char_root += 32; // to lowercase
+                    
+                    if char_file != char_root {
+                        match = false;
+                        break;
+                    }
+                }
+                is_local = match;
+            }
             
-            if contains(lower_filename, lower_project_root) {
+            if is_local {
                 debug_print(options, "Found local module file: %\n", filename);
                 
                 // Extract module name from the import
