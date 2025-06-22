@@ -1,4 +1,5 @@
 #import "Basic"; // For print
+#import "SampleModule";
 
 starter := 0;
 
@@ -38,6 +39,8 @@ main :: () {
     greet("Jaidoc Developer");
 
     print("Sample App: Execution finished.\n");
+
+    speak_poetry();
 
     print("Starter: %\n", starter);
 

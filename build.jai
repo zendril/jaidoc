@@ -57,6 +57,10 @@ Command :: enum_flags u8 {
         set_optimization(*sample_options, .OPTIMIZED);
     }
     
+    new_path: [..] string;
+    array_add(*new_path, ..sample_options.import_path); // Copy existing paths
+    array_add(*new_path, tprint("%src/sample/modules", #filepath));
+    sample_options.import_path = new_path;
     set_build_options(sample_options, sample_workspace);
 
     // Configure Jaidoc for this specific workspace
@@ -67,6 +71,7 @@ Command :: enum_flags u8 {
 
     compiler_begin_intercept(sample_workspace);
     add_build_file(tprint("%src/sample/sample.jai", #filepath), sample_workspace);
+    
 
     while true {
         message := compiler_wait_for_message();

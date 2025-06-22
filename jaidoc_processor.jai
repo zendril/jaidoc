@@ -34,10 +34,14 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
       case .FILE;
         mf := cast(*Message_File) message;
         if mf.enclosing_import != null && mf.enclosing_import.module_type == .MAIN_PROGRAM {
-            debug_print(options, "Now in file: %\n", mf.fully_pathed_filename);
+            debug_print(options, "Now in file (main program): %\n", mf.fully_pathed_filename);
             array_add(*target_files, copy_string(mf.fully_pathed_filename));
         }
 
+        if mf.enclosing_import != null && mf.enclosing_import.module_type == .FILE {
+            debug_print(options, "Now in file (file): %\n", mf.fully_pathed_filename);
+            // array_add(*target_files, copy_string(mf.fully_pathed_filename));
+        }
         // TODO support file_message.from_a_string
 
       case .TYPECHECKED;

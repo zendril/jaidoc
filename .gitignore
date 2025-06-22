@@ -3,4 +3,4 @@ target
 .build
 src/sample/*.exe
 src/sample/*.pdb
-
+.env
