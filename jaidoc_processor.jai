@@ -391,17 +391,146 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
         if file_info.declarations.count == 0 {
             array_add(*file_lines, "No declarations found in this file.");
         } else {
-            for decl: file_info.declarations {
-                decl_header := sprint("### % (%)", decl.name, decl.kind);
-                decl_type := sprint("- **Type**: %", decl.type_string);
-                decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-                decl_public := sprint("- **Public**: %", decl.is_public);
-                
-                array_add(*file_lines, decl_header);
-                array_add(*file_lines, decl_type);
-                array_add(*file_lines, decl_location);
-                array_add(*file_lines, decl_public);
+            // Group declarations by kind
+            procedures: [..] *Declaration_Info;
+            structs: [..] *Declaration_Info;
+            enums: [..] *Declaration_Info;
+            constants: [..] *Declaration_Info;
+            variables: [..] *Declaration_Info;
+            unions: [..] *Declaration_Info;
+            type_aliases: [..] *Declaration_Info;
+            
+            // Sort declarations into groups
+            for *decl: file_info.declarations {
+                if decl.kind == {
+                    case .PROCEDURE; array_add(*procedures, decl);
+                    case .STRUCT; array_add(*structs, decl);
+                    case .ENUM; array_add(*enums, decl);
+                    case .CONSTANT; array_add(*constants, decl);
+                    case .VARIABLE; array_add(*variables, decl);
+                    case .UNION; array_add(*unions, decl);
+                    case .TYPE_ALIAS; array_add(*type_aliases, decl);
+                }
+            }
+            
+            // Generate sections for each declaration type that has declarations
+            if procedures.count > 0 {
+                array_add(*file_lines, "### Procedures");
                 array_add(*file_lines, "");
+                for decl: procedures {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
+            }
+            
+            if structs.count > 0 {
+                array_add(*file_lines, "### Structs");
+                array_add(*file_lines, "");
+                for decl: structs {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
+            }
+            
+            if enums.count > 0 {
+                array_add(*file_lines, "### Enums");
+                array_add(*file_lines, "");
+                for decl: enums {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
+            }
+            
+            if constants.count > 0 {
+                array_add(*file_lines, "### Constants");
+                array_add(*file_lines, "");
+                for decl: constants {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
+            }
+            
+            if variables.count > 0 {
+                array_add(*file_lines, "### Variables");
+                array_add(*file_lines, "");
+                for decl: variables {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
+            }
+            
+            if unions.count > 0 {
+                array_add(*file_lines, "### Unions");
+                array_add(*file_lines, "");
+                for decl: unions {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
+            }
+            
+            if type_aliases.count > 0 {
+                array_add(*file_lines, "### Type Aliases");
+                array_add(*file_lines, "");
+                for decl: type_aliases {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
             }
         }
         
@@ -439,17 +568,146 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
             if file_info.declarations.count == 0 {
                 array_add(*module_lines, "No declarations found in this file.");
             } else {
-                for decl: file_info.declarations {
-                    decl_header := sprint("### % (%)", decl.name, decl.kind);
-                    decl_type := sprint("- **Type**: %", decl.type_string);
-                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-                    decl_public := sprint("- **Public**: %", decl.is_public);
-                    
-                    array_add(*module_lines, decl_header);
-                    array_add(*module_lines, decl_type);
-                    array_add(*module_lines, decl_location);
-                    array_add(*module_lines, decl_public);
+                // Group declarations by kind
+                procedures: [..] *Declaration_Info;
+                structs: [..] *Declaration_Info;
+                enums: [..] *Declaration_Info;
+                constants: [..] *Declaration_Info;
+                variables: [..] *Declaration_Info;
+                unions: [..] *Declaration_Info;
+                type_aliases: [..] *Declaration_Info;
+                
+                // Sort declarations into groups
+                for *decl: file_info.declarations {
+                    if decl.kind == {
+                        case .PROCEDURE; array_add(*procedures, decl);
+                        case .STRUCT; array_add(*structs, decl);
+                        case .ENUM; array_add(*enums, decl);
+                        case .CONSTANT; array_add(*constants, decl);
+                        case .VARIABLE; array_add(*variables, decl);
+                        case .UNION; array_add(*unions, decl);
+                        case .TYPE_ALIAS; array_add(*type_aliases, decl);
+                    }
+                }
+                
+                // Generate sections for each declaration type that has declarations
+                if procedures.count > 0 {
+                    array_add(*module_lines, "### Procedures");
                     array_add(*module_lines, "");
+                    for decl: procedures {
+                        decl_header := sprint("#### %", decl.name);
+                        decl_type := sprint("- **Type**: %", decl.type_string);
+                        decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                        decl_public := sprint("- **Public**: %", decl.is_public);
+                        
+                        array_add(*module_lines, decl_header);
+                        array_add(*module_lines, decl_type);
+                        array_add(*module_lines, decl_location);
+                        array_add(*module_lines, decl_public);
+                        array_add(*module_lines, "");
+                    }
+                }
+                
+                if structs.count > 0 {
+                    array_add(*module_lines, "### Structs");
+                    array_add(*module_lines, "");
+                    for decl: structs {
+                        decl_header := sprint("#### %", decl.name);
+                        decl_type := sprint("- **Type**: %", decl.type_string);
+                        decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                        decl_public := sprint("- **Public**: %", decl.is_public);
+                        
+                        array_add(*module_lines, decl_header);
+                        array_add(*module_lines, decl_type);
+                        array_add(*module_lines, decl_location);
+                        array_add(*module_lines, decl_public);
+                        array_add(*module_lines, "");
+                    }
+                }
+                
+                if enums.count > 0 {
+                    array_add(*module_lines, "### Enums");
+                    array_add(*module_lines, "");
+                    for decl: enums {
+                        decl_header := sprint("#### %", decl.name);
+                        decl_type := sprint("- **Type**: %", decl.type_string);
+                        decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                        decl_public := sprint("- **Public**: %", decl.is_public);
+                        
+                        array_add(*module_lines, decl_header);
+                        array_add(*module_lines, decl_type);
+                        array_add(*module_lines, decl_location);
+                        array_add(*module_lines, decl_public);
+                        array_add(*module_lines, "");
+                    }
+                }
+                
+                if constants.count > 0 {
+                    array_add(*module_lines, "### Constants");
+                    array_add(*module_lines, "");
+                    for decl: constants {
+                        decl_header := sprint("#### %", decl.name);
+                        decl_type := sprint("- **Type**: %", decl.type_string);
+                        decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                        decl_public := sprint("- **Public**: %", decl.is_public);
+                        
+                        array_add(*module_lines, decl_header);
+                        array_add(*module_lines, decl_type);
+                        array_add(*module_lines, decl_location);
+                        array_add(*module_lines, decl_public);
+                        array_add(*module_lines, "");
+                    }
+                }
+                
+                if variables.count > 0 {
+                    array_add(*module_lines, "### Variables");
+                    array_add(*module_lines, "");
+                    for decl: variables {
+                        decl_header := sprint("#### %", decl.name);
+                        decl_type := sprint("- **Type**: %", decl.type_string);
+                        decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                        decl_public := sprint("- **Public**: %", decl.is_public);
+                        
+                        array_add(*module_lines, decl_header);
+                        array_add(*module_lines, decl_type);
+                        array_add(*module_lines, decl_location);
+                        array_add(*module_lines, decl_public);
+                        array_add(*module_lines, "");
+                    }
+                }
+                
+                if unions.count > 0 {
+                    array_add(*module_lines, "### Unions");
+                    array_add(*module_lines, "");
+                    for decl: unions {
+                        decl_header := sprint("#### %", decl.name);
+                        decl_type := sprint("- **Type**: %", decl.type_string);
+                        decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                        decl_public := sprint("- **Public**: %", decl.is_public);
+                        
+                        array_add(*module_lines, decl_header);
+                        array_add(*module_lines, decl_type);
+                        array_add(*module_lines, decl_location);
+                        array_add(*module_lines, decl_public);
+                        array_add(*module_lines, "");
+                    }
+                }
+                
+                if type_aliases.count > 0 {
+                    array_add(*module_lines, "### Type Aliases");
+                    array_add(*module_lines, "");
+                    for decl: type_aliases {
+                        decl_header := sprint("#### %", decl.name);
+                        decl_type := sprint("- **Type**: %", decl.type_string);
+                        decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                        decl_public := sprint("- **Public**: %", decl.is_public);
+                        
+                        array_add(*module_lines, decl_header);
+                        array_add(*module_lines, decl_type);
+                        array_add(*module_lines, decl_location);
+                        array_add(*module_lines, decl_public);
+                        array_add(*module_lines, "");
+                    }
                 }
             }
         }
