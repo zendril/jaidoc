@@ -9,16 +9,20 @@
 
 #import "File_Utilities";
 
+LogLevel :: enum {
+    QUIET;
+    DEFAULT;
+    VERBOSE;
+}
+
 Jaidoc_Options :: struct {
     output_directory: string = "docs";
     project_root: string = "";  // Root directory of the project being documented
-    debug: bool = false;
-    // ... other options can be added later ...
-
+    log_level: LogLevel = .DEFAULT;
 }
 
 debug_print :: (options: Jaidoc_Options, fmt: string, args: ..Any) {
-    if options.debug {
+    if options.log_level == .VERBOSE {
         print(fmt, args);
     }
 }
@@ -191,8 +195,6 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
             filename := mf.fully_pathed_filename;
             project_root := options.project_root; // Use the new project_root field
             
-            debug_print(options, "Checking if '%' is under project root '%'\n", filename, project_root);
-            
             // Check if filename starts with project_root (case-insensitive, handle path separators)
             is_local := false;
             if project_root.count > 0 && filename.count > project_root.count {
@@ -292,6 +294,8 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
 }
 
 print_documentation_summary :: (options: Jaidoc_Options) {
+    if options.log_level == .QUIET return;
+
     print("\n=== Documentation Model Summary ===\n");
     
     print("Main Program Files: %\n", doc_model.main_files.count);
@@ -730,7 +734,9 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
 }
 
 process_finish :: (options: Jaidoc_Options) {
-    debug_print(options, "JaidocProcessor finished, which saw % messages.\n", num_messages);
+    if options.log_level == .VERBOSE {
+        print("JaidocProcessor finished, which saw % messages.\n", num_messages);
+    }
     
     generate_markdown_docs(options); // Call the new function here
 

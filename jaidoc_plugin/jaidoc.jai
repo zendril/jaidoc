@@ -1,5 +1,6 @@
 Plugin :: Metaprogram_Plugin;
 JaidocProcessor :: #import, file "../jaidoc_processor.jai"; // Import the library
+#import "Basic";
 
 Modules :: Table(string, [..]*Code_Declaration);
 
@@ -21,8 +22,15 @@ get_plugin :: () -> *Plugin {
     //p.add_source = add_source;
 
     // Initialize default options
-    p.options.output_directory = "target/docs";
-    p.options.debug = true; // Enable debug by default when using plugin
+    working_dir := get_working_directory();
+    if working_dir != "" {
+        p.options.project_root = working_dir;
+        p.options.output_directory = tprint("%/target/docs", working_dir);
+    } else {
+        print("Jaidoc plugin could not get working directory, using relative path for docs.\n");
+        p.options.output_directory = "target/docs";
+    }
+    // Log level defaults to .DEFAULT, can be overridden by args.
 
     return p;   
 }
@@ -64,19 +72,34 @@ init :: (_p: *Metaprogram_Plugin, options: [] string) -> bool {
     JaidocProcessor.debug_print(p.options, "Plugin: Current working directory: %", get_working_directory());
     JaidocProcessor.debug_print(p.options, "Plugin: Project root is same as current working directory: %", p.options.project_root == get_working_directory());
     
+    // Make the output directory absolute relative to project root
+    if !is_absolute_path(p.options.output_directory) {
+        p.options.output_directory = tprint("%/%", p.options.project_root, p.options.output_directory);
+        JaidocProcessor.debug_print(p.options, "Plugin: Set absolute output directory: %", p.options.output_directory);
+    }
+    
     cursor := 0;
     while cursor < options.count {
         s := options[cursor];
         if s == {
           case "-verbose";
-            p.options.debug = true;
+            p.options.log_level = .VERBOSE;
             cursor += 1;
+          case "-quiet";
+            p.options.log_level = .QUIET;
+            cursor += 1;
+
           case "-output";
             if cursor + 1 >= options.count {
                 log_error("Command line for plugin Jaidoc_Plugin: -output requires a directory argument.\n");
                 return false;
             }
             p.options.output_directory = options[cursor + 1];
+            // Make the output directory absolute if it's not already
+            if !is_absolute_path(p.options.output_directory) {
+                p.options.output_directory = tprint("%/%", p.options.project_root, p.options.output_directory);
+            }
+            JaidocProcessor.debug_print(p.options, "Plugin: Set custom output directory: %", p.options.output_directory);
             cursor += 2;
           case;
             log_error("Command line for plugin Jaidoc_Plugin: Unknown argument '%'.\n", s);
@@ -84,6 +107,16 @@ init :: (_p: *Metaprogram_Plugin, options: [] string) -> bool {
         }
     }
     return true;
+}
+
+is_absolute_path :: (path: string) -> bool {
+    if path.count >= 2 && path[1] == #char ":" {
+        return true;
+    }
+    if path.count >= 2 && path[0] == #char "\\" && path[1] == #char "\\" {
+        return true;
+    }
+    return false;
 }
 
 shutdown :: (_p: *Plugin) {

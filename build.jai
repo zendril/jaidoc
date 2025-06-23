@@ -14,12 +14,26 @@ Command :: enum_flags u8 {
     // context.print_style.default_format_struct.use_long_form_if_more_than_this_many_members = -1;
     // context.print_style.default_format_struct.use_newlines_if_long_form = true;
 
-    commands := parse_commands();
-    print("Commands: %\n", commands);
+    build_options_for_args := get_build_options();
+    args := build_options_for_args.compile_time_command_line;
+
+
+    // Configure Jaidoc and log level first
+    sample_jaidoc_options: JaidocProcessor.Jaidoc_Options;
+    if array_find(args, "-quiet") {
+        sample_jaidoc_options.log_level = .QUIET;
+    } else if array_find(args, "-verbose") {
+        sample_jaidoc_options.log_level = .VERBOSE;
+    } else {
+        sample_jaidoc_options.log_level = .DEFAULT;
+    }
+
+    commands := parse_commands(args);
+    if sample_jaidoc_options.log_level == .VERBOSE print("Commands: %\n", commands);
     
     // Always run clean first if specified, regardless of argument order
     if commands & .CLEAN {
-        print("=== Running clean ===\n");
+        if sample_jaidoc_options.log_level != .QUIET print("=== Running clean ===\n");
         clean_target_directory();
     }
 
@@ -31,7 +45,7 @@ Command :: enum_flags u8 {
 
     // Exit early if only clean was requested
     if commands == .CLEAN {
-        print("exiting because clean was the only thing requested\n");
+        if sample_jaidoc_options.log_level != .QUIET print("exiting because clean was the only thing requested\n");
         set_build_options_dc(.{do_output=false}, sample_workspace);
         exit(0);
     }
@@ -42,7 +56,7 @@ Command :: enum_flags u8 {
     sample_dir := "target/sample";
     success := make_directory_if_it_does_not_exist(sample_dir, true);
     if success {
-        print("Directory [%] created successfully!\n", sample_dir);
+        if sample_jaidoc_options.log_level == .VERBOSE print("Directory [%] created successfully!\n", sample_dir);
     } else {
         print("Failed to create [%].\n", sample_dir);
     }
@@ -64,10 +78,8 @@ Command :: enum_flags u8 {
     set_build_options(sample_options, sample_workspace);
 
     // Configure Jaidoc for this specific workspace
-    sample_jaidoc_options: JaidocProcessor.Jaidoc_Options;
     sample_jaidoc_options.output_directory = "target/docs/";
     sample_jaidoc_options.project_root = #filepath;
-    sample_jaidoc_options.debug = true;
 
 
     compiler_begin_intercept(sample_workspace);
@@ -90,26 +102,33 @@ Command :: enum_flags u8 {
     // This prevents the default "Target Program" (Workspace 2) from trying to link.
     set_build_options_dc(.{do_output=false});    
 
-    print("Build complete with optimization: %\n", ifx commands & .RELEASE then "OPTIMIZED" else "DEFAULT");
+    if sample_jaidoc_options.log_level != .QUIET print("Build complete with optimization: %\n", ifx commands & .RELEASE then "OPTIMIZED" else "DEFAULT");
 }
 
-parse_commands :: () -> Command {
-    build_options := get_build_options();
-    args := build_options.compile_time_command_line;
+parse_commands :: (args: [] string) -> Command {
     commands: Command = 0;
     
     for arg: args {
-        if arg == "clean" || arg == "--clean" {
-            commands |= .CLEAN;
-        } else if arg == "build" || arg == "--build" {
-            commands |= .BUILD;
-        } else if arg == "release" || arg == "--release" {
-            commands |= .RELEASE;
-            // Release implies build
-            commands |= .BUILD;
+        if arg == {
+            case "clean";
+                commands |= .CLEAN;
+            case "build";
+                commands |= .BUILD;
+            case "release";
+                commands |= .RELEASE;
+
+            case "-quiet";
+                // Handled in main logic, ignore here
+            case "-verbose";
+                // Handled in main logic, ignore here
+            case; // Default
+                if arg.count > 0 && arg[0] == #char "-" {
+                    // This is a compiler flag, ignore it.
+                } else {
+                    print("Unrecognized command: %\n", arg);
+                }
         }
     }
-    
     // Default to build if no commands specified
     if commands == 0 {
         commands = .BUILD;

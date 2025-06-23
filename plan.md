@@ -86,6 +86,7 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
         - [ ] A main index page.
         - [ ] Separate pages or sections for modules/files.
         - [ ] Listings of public procedures, structs, enums with their signatures/definitions.
+    - [ ] Implement (or pull in something like https://github.com/alourencodev/logssaurus) to do logging so we can have verbose, quiet, and normal modes.
 - **Deliverables:**
     - `jaidoc_plugin` that generates Markdown documentation.
     - Sample Markdown output for `src/sample/sample.jai`.
