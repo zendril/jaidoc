@@ -9,6 +9,11 @@ Point :: struct {
     y: float;
 }
 
+Number :: union {
+    i: int;
+    f: float;
+}
+
 // Public Enum: Represents basic colors
 Color :: enum {
     RED;
@@ -16,6 +21,8 @@ Color :: enum {
     BLUE;
     YELLOW;
 }
+
+global_message : string = "Hello, from a global variable!";
 
 // Public procedure 1: Adds two integers
 sum :: (a: int, b: int) -> int {

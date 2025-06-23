@@ -1,5 +1,9 @@
 // jaidoc_processor.jai - Core documentation processing library
 
+
+
+
+
 // Compiler :: #import "Compiler";
 #import "Compiler";
 #import "Basic";
@@ -133,6 +137,11 @@ get_declaration_kind :: (expr: *Code_Node) -> Declaration_Kind {
         case .PROCEDURE_HEADER;
             return .PROCEDURE;
         case .STRUCT;
+            cs := cast(*Code_Struct) expr;
+            if cs.defined_type {
+                ts := cast(*Type_Info_Struct) cs.defined_type;
+                if ts.textual_flags & .UNION return .UNION;
+            }
             return .STRUCT;
         case .ENUM;
             return .ENUM;
@@ -158,6 +167,11 @@ extract_type_info :: (expr: *Code_Node) -> string {
         case .PROCEDURE_HEADER;
             return "procedure";
         case .STRUCT;
+            cs := cast(*Code_Struct) expr;
+            if cs.defined_type {
+                ts := cast(*Type_Info_Struct) cs.defined_type;
+                if ts.textual_flags & .UNION return "union";
+            }
             return "struct";
         case .ENUM;
             return "enum";
@@ -254,6 +268,7 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
 
                 // Create declaration info and add to data model
                 decl_info: Declaration_Info;
+                
                 decl_info.name = copy_string(declname);
                 decl_info.file_path = copy_string(filename);
                 decl_info.line_number = code_declaration.location.l0;
@@ -262,21 +277,25 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
                 
                 if code_declaration.expression {
                     expr := code_declaration.expression;
-                    debug_print(options, "code_declaration.expression.kind: %\n", expr.kind);
-                    
-                    decl_info.kind = get_declaration_kind(expr);
-                    decl_info.type_string = copy_string(extract_type_info(expr));
-                    
-                    // Extract additional information based on declaration kind
-                    if decl_info.kind == .PROCEDURE {
-                        // TODO: Extract procedure parameters and return type
-                        decl_info.return_type = copy_string("void"); // Placeholder
-                    } else if decl_info.kind == .STRUCT || decl_info.kind == .ENUM {
-                        // TODO: Extract struct/enum members
+                    if expr.kind == .LITERAL {
+                        if code_declaration.flags & .IS_CONSTANT != 0 {
+                            decl_info.kind = .CONSTANT;
+                            decl_info.type_string = copy_string("constant");
+                        } else {
+                            decl_info.kind = .VARIABLE;
+                            decl_info.type_string = copy_string("variable");
+                        }
+                    } else {
+                        decl_info.kind = get_declaration_kind(expr);
+                        decl_info.type_string = copy_string(extract_type_info(expr));
+                        if decl_info.kind == .PROCEDURE {
+                            decl_info.return_type = copy_string("void"); // Placeholder
+                        }
+                        // struct/enum members handled in KIND logic if needed
                     }
                 } else {
                     decl_info.kind = .VARIABLE;
-                    decl_info.type_string = copy_string("unknown");
+                    decl_info.type_string = copy_string("variable");
                 }
                 
                 // Add declaration to the appropriate file
@@ -452,6 +471,23 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
                 }
             }
             
+            if unions.count > 0 {
+                array_add(*file_lines, "### Unions");
+                array_add(*file_lines, "");
+                for decl: unions {
+                    decl_header := sprint("#### %", decl.name);
+                    decl_type := sprint("- **Type**: %", decl.type_string);
+                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
+                    decl_public := sprint("- **Public**: %", decl.is_public);
+                    
+                    array_add(*file_lines, decl_header);
+                    array_add(*file_lines, decl_type);
+                    array_add(*file_lines, decl_location);
+                    array_add(*file_lines, decl_public);
+                    array_add(*file_lines, "");
+                }
+            }
+            
             if enums.count > 0 {
                 array_add(*file_lines, "### Enums");
                 array_add(*file_lines, "");
@@ -490,23 +526,6 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
                 array_add(*file_lines, "### Variables");
                 array_add(*file_lines, "");
                 for decl: variables {
-                    decl_header := sprint("#### %", decl.name);
-                    decl_type := sprint("- **Type**: %", decl.type_string);
-                    decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-                    decl_public := sprint("- **Public**: %", decl.is_public);
-                    
-                    array_add(*file_lines, decl_header);
-                    array_add(*file_lines, decl_type);
-                    array_add(*file_lines, decl_location);
-                    array_add(*file_lines, decl_public);
-                    array_add(*file_lines, "");
-                }
-            }
-            
-            if unions.count > 0 {
-                array_add(*file_lines, "### Unions");
-                array_add(*file_lines, "");
-                for decl: unions {
                     decl_header := sprint("#### %", decl.name);
                     decl_type := sprint("- **Type**: %", decl.type_string);
                     decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
