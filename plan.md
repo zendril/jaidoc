@@ -79,32 +79,20 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
 **Checkpoint 4: Markdown Output - Main Screen**
 - **Objective:** Generate basic Markdown documentation focusing on the main screen layout.
 - **Tasks:**
-    - [ ] Design the Markdown structure based on the "main-screen" mockup from `@reference/figma-mockups`.
-    - [ ] Modify `jaidoc_processor` to process the extracted metaprogramming data and generate Markdown files.
-    - [ ] Output Markdown files to a directory specified by Jaidoc_Options.output_directory.
-    - [ ] The initial Markdown should cover:
-        - [ ] A main index page.
-        - [ ] Separate pages or sections for modules/files.
-        - [ ] Listings of public procedures, structs, enums with their signatures/definitions.
+    - [x] Design the Markdown structure based on the "main-screen" mockup from `@reference/figma-mockups`.
+    - [x] Modify `jaidoc_processor` to process the extracted metaprogramming data and generate Markdown files.
+    - [x] Output Markdown files to a directory specified by Jaidoc_Options.output_directory.
+    - [x] The initial Markdown should cover:
+        - [x] A main index page.
+        - [x] Separate pages or sections for modules/files.
+        - [x] Listings of public procedures, structs, enums with their signatures/definitions.
     - [ ] Implement (or pull in something like https://github.com/alourencodev/logssaurus) to do logging so we can have verbose, quiet, and normal modes.
 - **Deliverables:**
     - `jaidoc_plugin` that generates Markdown documentation.
     - Sample Markdown output for `src/sample/sample.jai`.
 - **Review:** Assess the generated Markdown for accuracy, completeness, and adherence to the main-screen mockup.
 
-**Checkpoint 5: Markdown Output - Search Integration Elements**
-- **Objective:** Enhance Markdown output to support search functionality as per the "search-screen" mockup.
-- **Tasks:**
-    - [ ] Analyze the "search-screen" mockup from `@reference/figma-mockups` to identify necessary data and structure for search.
-    - [ ] Modify `jaidoc_plugin` to:
-        - [ ] Generate any additional Markdown files or data structures (e.g., a searchable index in Markdown or JSON format) needed to facilitate search.
-        - [ ] Ensure existing Markdown files are structured to be easily indexed or searched.
-- **Deliverables:**
-    - Updated `jaidoc_plugin` with enhancements for search.
-    - Markdown output that includes elements or data for the search functionality.
-- **Review:** Evaluate if the Markdown output provides the necessary components for implementing the search screen.
-
-**Checkpoint 6: HTML Output - Main Screen**
+**Checkpoint 5: HTML Output - Main Screen**
 - **Objective:** Generate HTML documentation based on the "main-screen" mockup.
 - **Tasks:**
     - [ ] Choose a method for HTML generation (e.g., convert Markdown to HTML, or generate HTML directly from metaprogramming data).
@@ -116,7 +104,7 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
     - Sample HTML output for `src/sample/sample.jai`.
 - **Review:** Check the HTML output for visual accuracy against the mockup, correctness of content, and basic usability.
 
-**Checkpoint 7: HTML Output - Search Screen**
+**Checkpoint 6: HTML Output - Search Screen**
 - **Objective:** Implement the HTML "search-screen" functionality.
 - **Tasks:**
     - [ ] Develop the HTML, CSS, and potentially JavaScript for the search interface based on the "search-screen" mockup.
@@ -127,27 +115,27 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
 
 **Future Checkpoints (To Be Detailed):**
 
-- **Checkpoint 8: Doc Comment Support**
+- **Checkpoint 7: Doc Comment Support**
     - [ ] Research Jai's existing comment conventions and popular doc comment styles (e.g., `///`, `//!`).
     - [ ] Implement parsing of these comments in `jaidoc_plugin`.
     - [ ] Integrate extracted doc comments into Markdown and HTML outputs.
     - [ ] Expand `src/sample/sample.jai` with examples of documented code.
 
-- **Checkpoint 9: Executable Test Cases in Docs**
+- **Checkpoint 8: Executable Test Cases in Docs**
     - [ ] Design a syntax for embedding executable test cases within doc comments (similar to Rust's `cargo test --doc`).
     - [ ] Modify `jaidoc_plugin` to extract these test cases.
     - [ ] Update `build.jai` or create a separate tool to run these documentation tests.
     - [ ] Add examples to `src/sample/sample.jai`.
 
-- **Checkpoint 10: Sample App Expansion & Comprehensive Testing**
+- **Checkpoint 9: Sample App Expansion & Comprehensive Testing**
     - [ ] Systematically add more complex Jai features to `src/sample/sample.jai` (e.g., advanced struct usage, unions, modules, context-sensitive procedures, etc.).
     - [ ] Ensure `jaidoc` correctly documents all supported Jai constructs.
 
-- **Checkpoint 11: Plugin System Investigation & Refinement**
+- **Checkpoint 10: Plugin System Investigation & Refinement**
     - [ ] Investigate how the Jai compiler's plugin system discovers and loads plugins.
     - [ ] If necessary, refactor the `jaidoc_plugin` directory structure or build process for better integration or distribution.
 
-- **Checkpoint 12: Final Review, Polish, and Documentation for `jaidoc` itself**
+- **Checkpoint 11: Final Review, Polish, and Documentation for `jaidoc` itself**
     - [ ] Review all features.
     - [ ] Polish UI/UX of generated docs.
     - [ ] Write documentation for `jaidoc` (how to use it, how to build it, etc.).
