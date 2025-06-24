@@ -322,7 +322,7 @@ print_documentation_summary :: (options: Jaidoc_Options) {
         print("  File: %\n", file_info.path);
         print("    Declarations: %\n", file_info.declarations.count);
         for decl: file_info.declarations {
-            print("      - % (%s) [%d:%d]\n", decl.name, decl.kind, decl.line_number, decl.column_number);
+            print("      - % (%) [%:%]\n", decl.name, decl.kind, decl.line_number, decl.column_number);
         }
     }
     
@@ -334,7 +334,7 @@ print_documentation_summary :: (options: Jaidoc_Options) {
             print("    File: %\n", file_info.path);
             print("      Declarations: %\n", file_info.declarations.count);
             for decl: file_info.declarations {
-                print("        - % (%s) [%d:%d]\n", decl.name, decl.kind, decl.line_number, decl.column_number);
+                print("        - % (%) [%:%]\n", decl.name, decl.kind, decl.line_number, decl.column_number);
             }
         }
     }
