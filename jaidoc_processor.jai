@@ -354,46 +354,72 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
 print_documentation_summary :: (options: Jaidoc_Options) {
     if options.log_level == .QUIET return;
 
-    print("\n=== Documentation Model Summary ===\n");
+    print("\n=== Documentation Summary ===\n");
+    print("Main files: %\n", doc_model.main_files.count);
     
-    print("Main Program Files: %\n", doc_model.main_files.count);
+    total_main_declarations := 0;
     for file_info: doc_model.main_files {
-        print("  File: %\n", file_info.path);
-        print("    Declarations: %\n", file_info.declarations.count);
-        for decl: file_info.declarations {
-            print("      - % (%) [%:%]\n", decl.name, decl.kind, decl.line_number, decl.column_number);
+        total_main_declarations += file_info.declarations.count;
+    }
+    print("Total declarations in main files: %\n", total_main_declarations);
+    
+    print("Modules: %\n", doc_model.modules.count);
+    
+    total_module_declarations := 0;
+    for module_info: doc_model.modules {
+        for file_info: module_info.files {
+            total_module_declarations += file_info.declarations.count;
         }
+    }
+    print("Total declarations in modules: %\n", total_module_declarations);
+    
+    print("Total declarations: %\n", total_main_declarations + total_module_declarations);
+    print("=============================\n");
+}
+
+generate_html_page :: (title: string, body_html: string, nav_links: [] string) -> string {
+    builder: String_Builder;
+    
+    String.append(*builder, "<!DOCTYPE html>\n");
+    String.append(*builder, "<html lang=\"en\">\n");
+    String.append(*builder, "<head>\n");
+    String.append(*builder, "    <meta charset=\"UTF-8\">\n");
+    String.append(*builder, "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+    String.append(*builder, tprint("    <title>%</title>\n", title));
+    String.append(*builder, "    <link rel=\"stylesheet\" href=\"css/main.css\">\n");
+    String.append(*builder, "</head>\n");
+    String.append(*builder, "<body>\n");
+    
+    // Main Content
+    String.append(*builder, "    <div class=\"main-content\">\n");
+    String.append(*builder, body_html);
+    String.append(*builder, "    </div>\n");
+    
+    // Right Navigation
+    if nav_links.count > 0 {
+        String.append(*builder, "    <div class=\"right-nav\">\n");
+        String.append(*builder, "        <h3>On this page</h3>\n");
+        String.append(*builder, "        <ul>\n");
+        for link: nav_links {
+            link_href := String.replace(link, " ", "-");
+            String.append(*builder, tprint("            <li><a href=\"#%\">%</a></li>\n", link_href, link));
+        }
+        String.append(*builder, "        </ul>\n");
+        String.append(*builder, "    </div>\n");
     }
     
-    print("Imported Modules: %\n", doc_model.modules.count);
-    for module_info: doc_model.modules {
-        print("  Module: %\n", module_info.name);
-        print("    Files: %\n", module_info.files.count);
-        for file_info: module_info.files {
-            print("    File: %\n", file_info.path);
-            print("      Declarations: %\n", file_info.declarations.count);
-            for decl: file_info.declarations {
-                print("        - % (%) [%:%]\n", decl.name, decl.kind, decl.line_number, decl.column_number);
-            }
-        }
-    }
+    String.append(*builder, "</body>\n");
+    String.append(*builder, "</html>\n");
+    
+    return builder_to_string(*builder);
 }
 
-// Helper function to sanitize file paths for Markdown filenames
-sanitize_path_for_markdown :: (path: string) -> string {
-    result := path;
-    // Simple character replacement using sprint
-    result = sprint("%", result);
-    // Replace problematic characters with underscores manually
-    // This is a simplified approach
-    return result;
-}
-
-// Helper function to generate markdown documentation for declarations
-generate_declarations_markdown :: (declarations: [] Declaration_Info, lines: *[..] string) {
+generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] string) -> [..]string {
+    nav_links: [..]string;
+    
     if declarations.count == 0 {
-        array_add(lines, "No declarations found in this file.");
-        return;
+        array_add(lines, "        <p>No declarations found in this file.</p>");
+        return nav_links;
     }
     
     // Group declarations by kind
@@ -417,241 +443,347 @@ generate_declarations_markdown :: (declarations: [] Declaration_Info, lines: *[.
             case .TYPE_ALIAS; array_add(*type_aliases, decl);
         }
     }
-    
-    // Generate sections for each declaration type that has declarations
+
+    // Generate HTML for each section
     if procedures.count > 0 {
-        array_add(lines, "### Procedures");
-        array_add(lines, "");
+        array_add(*nav_links, "Procedures");
+        array_add(lines, "        <div class=\"declaration-section\">");
+        array_add(lines, "            <h3 id=\"procedures\">Procedures</h3>");
         for decl: procedures {
-            decl_header := sprint("#### %", decl.name);
-            decl_type := sprint("- **Type**: %", decl.type_string);
-            decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-            decl_public := sprint("- **Public**: %", decl.is_public);
-            
-            array_add(lines, decl_header);
-            array_add(lines, decl_type);
-            array_add(lines, decl_location);
-            array_add(lines, decl_public);
-            array_add(lines, "");
+            array_add(lines, tprint("            <h4>%</h4>", decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
+            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
         }
+        array_add(lines, "        </div>");
     }
-    
+
     if structs.count > 0 {
-        array_add(lines, "### Structs");
-        array_add(lines, "");
+        array_add(*nav_links, "Structs");
+        array_add(lines, "        <div class=\"declaration-section\">");
+        array_add(lines, "            <h3 id=\"structs\">Structs</h3>");
         for decl: structs {
-            decl_header := sprint("#### %", decl.name);
-            decl_type := sprint("- **Type**: %", decl.type_string);
-            decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-            decl_public := sprint("- **Public**: %", decl.is_public);
-            
-            array_add(lines, decl_header);
-            array_add(lines, decl_type);
-            array_add(lines, decl_location);
-            array_add(lines, decl_public);
-            array_add(lines, "");
+            array_add(lines, tprint("            <h4>%</h4>", decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
+            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
         }
+        array_add(lines, "        </div>");
     }
     
     if enums.count > 0 {
-        array_add(lines, "### Enums");
-        array_add(lines, "");
+        array_add(*nav_links, "Enums");
+        array_add(lines, "        <div class=\"declaration-section\">");
+        array_add(lines, "            <h3 id=\"enums\">Enums</h3>");
         for decl: enums {
-            decl_header := sprint("#### %", decl.name);
-            decl_type := sprint("- **Type**: %", decl.type_string);
-            decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-            decl_public := sprint("- **Public**: %", decl.is_public);
-            
-            array_add(lines, decl_header);
-            array_add(lines, decl_type);
-            array_add(lines, decl_location);
-            array_add(lines, decl_public);
-            array_add(lines, "");
+            array_add(lines, tprint("            <h4>%</h4>", decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
+            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
         }
+        array_add(lines, "        </div>");
     }
     
     if unions.count > 0 {
-        array_add(lines, "### Unions");
-        array_add(lines, "");
+        array_add(*nav_links, "Unions");
+        array_add(lines, "        <div class=\"declaration-section\">");
+        array_add(lines, "            <h3 id=\"unions\">Unions</h3>");
         for decl: unions {
-            decl_header := sprint("#### %", decl.name);
-            decl_type := sprint("- **Type**: %", decl.type_string);
-            decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-            decl_public := sprint("- **Public**: %", decl.is_public);
-            
-            array_add(lines, decl_header);
-            array_add(lines, decl_type);
-            array_add(lines, decl_location);
-            array_add(lines, decl_public);
-            array_add(lines, "");
+            array_add(lines, tprint("            <h4>%</h4>", decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
+            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
         }
+        array_add(lines, "        </div>");
     }
     
     if type_aliases.count > 0 {
-        array_add(lines, "### Type Aliases");
-        array_add(lines, "");
+        array_add(*nav_links, "Type Aliases");
+        array_add(lines, "        <div class=\"declaration-section\">");
+        array_add(lines, "            <h3 id=\"type-aliases\">Type Aliases</h3>");
         for decl: type_aliases {
-            decl_header := sprint("#### %", decl.name);
-            decl_type := sprint("- **Type**: %", decl.type_string);
-            decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-            decl_public := sprint("- **Public**: %", decl.is_public);
-            
-            array_add(lines, decl_header);
-            array_add(lines, decl_type);
-            array_add(lines, decl_location);
-            array_add(lines, decl_public);
-            array_add(lines, "");
+            array_add(lines, tprint("            <h4>%</h4>", decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
+            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
         }
+        array_add(lines, "        </div>");
     }
     
     if constants.count > 0 {
-        array_add(lines, "### Constants");
-        array_add(lines, "");
+        array_add(*nav_links, "Constants");
+        array_add(lines, "        <div class=\"declaration-section\">");
+        array_add(lines, "            <h3 id=\"constants\">Constants</h3>");
         for decl: constants {
-            decl_header := sprint("#### %", decl.name);
-            decl_type := sprint("- **Type**: %", decl.type_string);
-            decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-            decl_public := sprint("- **Public**: %", decl.is_public);
-            
-            array_add(lines, decl_header);
-            array_add(lines, decl_type);
-            array_add(lines, decl_location);
-            array_add(lines, decl_public);
-            array_add(lines, "");
+            array_add(lines, tprint("            <h4>%</h4>", decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
+            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
         }
+        array_add(lines, "        </div>");
     }
     
     if variables.count > 0 {
-        array_add(lines, "### Variables");
-        array_add(lines, "");
+        array_add(*nav_links, "Variables");
+        array_add(lines, "        <div class=\"declaration-section\">");
+        array_add(lines, "            <h3 id=\"variables\">Variables</h3>");
         for decl: variables {
-            decl_header := sprint("#### %", decl.name);
-            decl_type := sprint("- **Type**: %", decl.type_string);
-            decl_location := sprint("- **Location**: Line %, Column %", decl.line_number, decl.column_number);
-            decl_public := sprint("- **Public**: %", decl.is_public);
-            
-            array_add(lines, decl_header);
-            array_add(lines, decl_type);
-            array_add(lines, decl_location);
-            array_add(lines, decl_public);
-            array_add(lines, "");
+            array_add(lines, tprint("            <h4>%</h4>", decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
+            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
         }
+        array_add(lines, "        </div>");
     }
+    
+    return nav_links;
 }
 
-// New function to generate markdown documentation
-generate_markdown_docs :: (options: Jaidoc_Options) {
+generate_html_docs :: (options: Jaidoc_Options) {
     // Create output directory
     if !File_Utilities.file_exists(options.output_directory) {
         make_directory_if_it_does_not_exist(options.output_directory, true);
         debug_print(options, "Created output directory: %\n", options.output_directory);
     }
 
-    // Generate and write index.md file
-    index_file_path := sprint("%/index.md", options.output_directory);
+    // Create CSS directory and file
+    css_dir := sprint("%/css", options.output_directory);
+    if !File_Utilities.file_exists(css_dir) {
+        make_directory_if_it_does_not_exist(css_dir, true);
+        debug_print(options, "Created CSS directory: %\n", css_dir);
+    }
     
-    // Build index content step by step
-    index_lines: [..] string;
-    array_add(*index_lines, "# Jaidoc Documentation");
-    array_add(*index_lines, "");
-    array_add(*index_lines, "## Main Program Files");
-    array_add(*index_lines, "");
+    // Generate CSS content
+    css_content := #string END
+/* General Body Styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+/* Main Content Styles */
+.main-content {
+    flex-grow: 1;
+    padding: 20px;
+}
+
+/* Right Navigation Styles */
+.right-nav {
+    width: 220px;
+    min-width: 220px;
+    padding: 20px;
+    border-left: 1px solid #ccc;
+    background-color: #f8f8f8;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+}
+
+.right-nav h3 {
+    margin-top: 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.right-nav ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.right-nav li a {
+    text-decoration: none;
+    color: #333;
+    display: block;
+    padding: 5px 0;
+    border-radius: 3px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.right-nav li a:hover {
+    color: #000;
+    background-color: #eee;
+    padding-left: 5px;
+}
+
+/* Header Styles */
+h1, h2, h3, h4, h5, h6 {
+    scroll-margin-top: 10px;
+    color: #333;
+}
+
+h1 {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+h2 {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+/* Declaration Section Styles */
+.declaration-section {
+    margin-bottom: 30px;
+}
+
+.declaration-section h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+.declaration-section h4 {
+    color: #34495e;
+    margin-bottom: 10px;
+}
+
+/* Code Block Styles */
+.code-block {
+    background-color: #f4f4f4;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 0.9em;
+}
+
+/* Link Styles */
+a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        flex-direction: column;
+    }
+    
+    .right-nav {
+        width: 100%;
+        height: auto;
+        position: static;
+        border-left: none;
+        border-top: 1px solid #ccc;
+    }
+}
+END;
+    
+    css_file_path := sprint("%/main.css", css_dir);
+    css_success := write_entire_file(css_file_path, css_content);
+    if css_success {
+        debug_print(options, "Generated CSS file at %\n", css_file_path);
+    } else {
+        debug_print(options, "Failed to create CSS file at %\n", css_file_path);
+    }
+    
+    // Generate and write index.html file
+    index_file_path := sprint("%/index.html", options.output_directory);
+    
+    // Build index content
+    index_body_lines: [..] string;
+    array_add(*index_body_lines, "        <h1>Jaidoc Documentation</h1>");
+    array_add(*index_body_lines, "        <h2>Main Program Files</h2>");
     
     if doc_model.main_files.count == 0 {
-        array_add(*index_lines, "No main program files found.");
+        array_add(*index_body_lines, "        <p>No main program files found.</p>");
     } else {
         for file_info: doc_model.main_files {
-            file_md_name := "file_main.md";
-            link_line := sprint("- [%](%)", file_info.path, file_md_name);
-            array_add(*index_lines, link_line);
+            file_html_name := "file_main.html";
+            link_line := sprint("        <p><a href=\"%\">%</a></p>", file_html_name, file_info.path);
+            array_add(*index_body_lines, link_line);
         }
     }
     
-    array_add(*index_lines, "");
-    array_add(*index_lines, "## Modules");
-    array_add(*index_lines, "");
+    array_add(*index_body_lines, "        <h2>Modules</h2>");
     
     if doc_model.modules.count == 0 {
-        array_add(*index_lines, "No modules found.");
+        array_add(*index_body_lines, "        <p>No modules found.</p>");
     } else {
         for module_info: doc_model.modules {
-            link_line := sprint("- [%](module_%.md)", module_info.name, module_info.name);
-            array_add(*index_lines, link_line);
+            link_line := sprint("        <p><a href=\"module_%.html\">%</a></p>", module_info.name, module_info.name);
+            array_add(*index_body_lines, link_line);
         }
     }
     
-    // Join all lines with newlines
-    index_content := String.join(..index_lines, "\n");
-    index_content = sprint("%\n", index_content); // Add final newline
+    // Create index page
+    index_body := String.join(..index_body_lines, "\n");
+    index_nav_links: [..]string; // No navigation for index page
+    index_html := generate_html_page("Jaidoc Documentation", index_body, index_nav_links);
     
-    success := write_entire_file(index_file_path, index_content);
-    if success {
-        debug_print(options, "Generated index.md at %\n", index_file_path);
+    index_success := write_entire_file(index_file_path, index_html);
+    if index_success {
+        debug_print(options, "Generated index.html at %\n", index_file_path);
     } else {
-        debug_print(options, "Failed to create index.md at %\n", index_file_path);
+        debug_print(options, "Failed to create index.html at %\n", index_file_path);
     }
     
-    // Generate simple documentation for main files
+    // Generate documentation for main files
     for file_info: doc_model.main_files {
-        file_lines: [..] string;
-        file_header := sprint("# File: %", file_info.path);
-        array_add(*file_lines, file_header);
-        array_add(*file_lines, "");
-        array_add(*file_lines, "## Declarations");
-        array_add(*file_lines, "");
+        file_body_lines: [..] string;
+        file_header := sprint("        <h1>File: %</h1>", file_info.path);
+        array_add(*file_body_lines, file_header);
+        array_add(*file_body_lines, "        <h2>Declarations</h2>");
         
+        nav_links: [..]string;
         if file_info.declarations.count == 0 {
-            array_add(*file_lines, "No declarations found in this file.");
+            array_add(*file_body_lines, "        <p>No declarations found in this file.</p>");
         } else {
-            generate_declarations_markdown(file_info.declarations, *file_lines);
+            nav_links = generate_declarations_html(file_info.declarations, *file_body_lines);
         }
         
-        // Join all lines with newlines
-        file_content := String.join(..file_lines, "\n");
-        file_content = sprint("%\n", file_content); // Add final newline
+        // Create HTML page
+        file_body := String.join(..file_body_lines, "\n");
+        file_title := sprint("File: %", file_info.path);
+        file_html := generate_html_page(file_title, file_body, nav_links);
         
         // Write to file
-        file_output_path := sprint("%/file_main.md", options.output_directory);
-        success := write_entire_file(file_output_path, file_content);
-        if success {
-            debug_print(options, "Generated file_main.md at %\n", file_output_path);
+        file_output_path := sprint("%/file_main.html", options.output_directory);
+        file_success := write_entire_file(file_output_path, file_html);
+        if file_success {
+            debug_print(options, "Generated file_main.html at %\n", file_output_path);
         } else {
-            debug_print(options, "Failed to create file_main.md at %\n", file_output_path);
+            debug_print(options, "Failed to create file_main.html at %\n", file_output_path);
         }
     }
 
-    // Generate simple documentation for modules  
+    // Generate documentation for modules  
     for module_info: doc_model.modules {
-        module_lines: [..] string;
+        module_body_lines: [..] string;
         
-        module_header := sprint("# Module: %", module_info.name);
-        import_path_line := sprint("Import Path: `%`", module_info.import_path);
+        module_header := sprint("        <h1>Module: %</h1>", module_info.name);
+        import_path_line := sprint("        <p><strong>Import Path:</strong> <code>%</code></p>", module_info.import_path);
         
-        array_add(*module_lines, module_header);
-        array_add(*module_lines, "");
-        array_add(*module_lines, import_path_line);
-        array_add(*module_lines, "");
+        array_add(*module_body_lines, module_header);
+        array_add(*module_body_lines, import_path_line);
         
+        nav_links: [..]string;
         for file_info: module_info.files {
-            file_header := sprint("## File: %", file_info.path);
-            array_add(*module_lines, file_header);
-            array_add(*module_lines, "");
+            file_header := sprint("        <h2>File: %</h2>", file_info.path);
+            array_add(*module_body_lines, file_header);
             
             if file_info.declarations.count == 0 {
-                array_add(*module_lines, "No declarations found in this file.");
+                array_add(*module_body_lines, "        <p>No declarations found in this file.</p>");
             } else {
-                generate_declarations_markdown(file_info.declarations, *module_lines);
+                file_nav_links := generate_declarations_html(file_info.declarations, *module_body_lines);
+                // Combine navigation links from all files in the module
+                for link: file_nav_links {
+                    array_add(*nav_links, link);
+                }
             }
         }
         
-        // Join all lines with newlines
-        module_content := String.join(..module_lines, "\n");
-        module_content = sprint("%\n", module_content); // Add final newline
+        // Create HTML page
+        module_body := String.join(..module_body_lines, "\n");
+        module_title := sprint("Module: %", module_info.name);
+        module_html := generate_html_page(module_title, module_body, nav_links);
         
         // Write to file
-        module_output_path := sprint("%/module_%.md", options.output_directory, module_info.name);
-        success := write_entire_file(module_output_path, module_content);
-        if success {
+        module_output_path := sprint("%/module_%.html", options.output_directory, module_info.name);
+        module_success := write_entire_file(module_output_path, module_html);
+        if module_success {
             debug_print(options, "Generated module_% successfully\n", module_info.name);
             debug_print(options, "  Path: %\n", module_output_path);
         } else {
@@ -661,267 +793,11 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
     }
 }
 
-generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] string) {
-    // Group declarations by kind
-    variables: [..]Declaration_Info;
-    procedures: [..]Declaration_Info;
-    structs: [..]Declaration_Info;
-    enums: [..]Declaration_Info;
-    unions: [..]Declaration_Info;
-    constants: [..]Declaration_Info;
-
-    for decl: declarations {
-        if !decl.is_public continue;
-        if decl.kind == {
-            case .VARIABLE;   array_add(*variables, decl);
-            case .PROCEDURE;  array_add(*procedures, decl);
-            case .STRUCT;     array_add(*structs, decl);
-            case .ENUM;       array_add(*enums, decl);
-            case .UNION;      array_add(*unions, decl);
-            case .CONSTANT;   array_add(*constants, decl);
-        }
-    }
-
-    // Generate HTML for each section
-    if procedures.count > 0 {
-        array_add(lines, "<div class=\"declaration-section\">");
-        array_add(lines, "<h3>Procedures</h3>");
-        for decl: procedures {
-            // Simplified representation for now
-            array_add(lines, tprint("<h4>%</h4>", decl.name));
-            array_add(lines, tprint("<pre><code>%</code></pre>", decl.type_string));
-        }
-        array_add(lines, "</div>");
-    }
-
-    if structs.count > 0 {
-        array_add(lines, "<div class=\"declaration-section\">");
-        array_add(lines, "<h3>Structs</h3>");
-        for decl: structs {
-            array_add(lines, tprint("<h4>%</h4>", decl.name));
-            array_add(lines, tprint("<pre><code>%</code></pre>", decl.type_string));
-        }
-        array_add(lines, "</div>");
-    }
-    
-    if enums.count > 0 {
-        array_add(lines, "<div class=\"declaration-section\">");
-        array_add(lines, "<h3>Enums</h3>");
-        for decl: enums {
-            array_add(lines, tprint("<h4>%</h4>", decl.name));
-            array_add(lines, tprint("<pre><code>%</code></pre>", decl.type_string));
-        }
-        array_add(lines, "</div>");
-    }
-    
-    // ... Add other types as needed (unions, constants, etc.)
-}
-
-
-// New function to generate HTML documentation
-generate_html_docs :: (options: Jaidoc_Options) {
-    html_output_dir := String.join(options.output_directory, "/html", separator="");
-    if !make_directory_if_it_does_not_exist(html_output_dir, true) {
-        print("Error: Could not create HTML output directory: %\n", html_output_dir);
-        return;
-    }
-
-    css_dir := String.join(html_output_dir, "/css", separator="");
-    if !make_directory_if_it_does_not_exist(css_dir, true) {
-        print("Error: Could not create CSS directory: %\n", css_dir);
-        return;
-    }
-
-    css_content := #string END
-/* General Body Styles */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    margin: 0;
-    padding: 0;
-    background-color: #121212;
-    color: #e0e0e0;
-    display: flex;
-}
-
-/* Sidebar Styles */
-.sidebar {
-    width: 250px;
-    background-color: #1e1e1e;
-    padding: 20px;
-    height: 100vh;
-    position: fixed;
-    overflow-y: auto;
-    border-right: 1px solid #333;
-}
-
-.sidebar h2 {
-    color: #ffffff;
-    margin-top: 0;
-}
-
-.sidebar ul {
-    list-style-type: none;
-    padding: 0;
-}
-
-.sidebar ul li a {
-    color: #a0a0a0;
-    text-decoration: none;
-    display: block;
-    padding: 8px 15px;
-    border-radius: 4px;
-    transition: background-color 0.3s, color 0.3s;
-}
-
-.sidebar ul li a:hover,
-.sidebar ul li a.active {
-    background-color: #333;
-    color: #ffffff;
-}
-
-/* Main Content Styles */
-.main-content {
-    margin-left: 270px; /* Sidebar width + some padding */
-    padding: 20px 40px;
-    width: calc(100% - 270px);
-}
-
-h1, h2, h3 {
-    color: #ffffff;
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
-}
-
-pre {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    padding: 15px;
-    border-radius: 5px;
-    overflow-x: auto;
-}
-
-code {
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
-    background-color: #282828;
-    padding: 2px 4px;
-    border-radius: 3px;
-}
-
-pre code {
-    background-color: transparent;
-    padding: 0;
-    border-radius: 0;
-}
-
-a {
-    color: #4a90e2;
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-/* Declaration sections */
-.declaration-section {
-    margin-bottom: 30px;
-}
-
-.declaration-section h3 {
-    margin-bottom: 15px;
-}
-END;
-    css_path := String.join(css_dir, "/main.css", separator="");
-    write_entire_file(css_path, css_content);
-
-    // --- Generate sidebar and file pages ---
-    sidebar_links: [..]string;
-
-    // Process main files
-    for file_info: doc_model.main_files {
-        file_name_without_ext := path_strip_extension(get_filename_from_path(file_info.path));
-        html_file_name := String.join(file_name_without_ext, ".html", separator="");
-        array_add(*sidebar_links, String.join("<li><a href=\"", html_file_name, "\">", file_name_without_ext, "</a></li>", separator=""));
-
-        // Generate content for this file's page
-        page_lines: [..]string;
-        array_add(*page_lines, String.join("<h1>", file_info.path, "</h1>", separator=""));
-        generate_declarations_html(file_info.declarations, *page_lines);
-        
-        page_content := String.join(..page_lines, "\n");
-        write_html_page(html_output_dir, html_file_name, "Main Files", page_content, sidebar_links);
-    }
-
-    // Process modules
-    for module_info: doc_model.modules {
-        html_file_name := String.join(module_info.name, ".html", separator="");
-        array_add(*sidebar_links, String.join("<li><a href=\"", html_file_name, "\">", module_info.name, "</a></li>", separator=""));
-
-        page_lines: [..]string;
-        array_add(*page_lines, String.join("<h1>Module: ", module_info.name, "</h1>", separator=""));
-        for file_info: module_info.files {
-            array_add(*page_lines, String.join("<h2>File: ", file_info.path, "</h2>", separator=""));
-            generate_declarations_html(file_info.declarations, *page_lines);
-        }
-
-        page_content := String.join(..page_lines, "\n");
-        write_html_page(html_output_dir, html_file_name, module_info.name, page_content, sidebar_links);
-    }
-
-    // Write main index.html with populated sidebar
-    index_content := get_html_page_wrapper("Welcome", "<header><h1>Welcome to Jaidoc</h1><p>Select a module or file from the sidebar to view its documentation.</p></header>", sidebar_links);
-    index_path := String.join(html_output_dir, "/index.html", separator="");
-    write_entire_file(index_path, index_content);
-
-
-    if options.log_level != .QUIET {
-        print("Generated HTML documentation in: %\n", html_output_dir);
-    }
-}
-
-write_html_page :: (output_dir: string, file_name: string, title: string, content: string, sidebar_links: [] string) {
-    page_wrapper := get_html_page_wrapper(title, content, sidebar_links);
-    file_path := String.join(output_dir, "/", file_name, separator="");
-    write_entire_file(file_path, page_wrapper);
-}
-
-get_html_page_wrapper :: (title: string, content: string, sidebar_links: [] string) -> string {
-    sidebar_html := String.join(..sidebar_links, "\n");
-
-    builder: String_Builder;
-    append(*builder, "<!DOCTYPE html>\n");
-    append(*builder, "<html lang=\"en\">\n");
-    append(*builder, "<head>\n");
-    append(*builder, "    <meta charset=\"UTF-8\">\n");
-    append(*builder, "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-    append(*builder, String.join("    <title>", title, " - Jaidoc</title>\n", separator=""));
-    append(*builder, "    <link rel=\"stylesheet\" href=\"css/main.css\">\n");
-    append(*builder, "</head>\n");
-    append(*builder, "<body>\n");
-    append(*builder, "    <aside class=\"sidebar\">\n");
-    append(*builder, "        <h2>Modules & Files</h2>\n");
-    append(*builder, "        <nav>\n");
-    append(*builder, "            <ul>\n");
-    append(*builder, sidebar_html);
-    append(*builder, "            </ul>\n");
-    append(*builder, "        </nav>\n");
-    append(*builder, "    </aside>\n");
-    append(*builder, "    <main class=\"main-content\">\n");
-    append(*builder, content);
-    append(*builder, "    </main>\n");
-    append(*builder, "</body>\n");
-    append(*builder, "</html>\n");
-    
-    return builder_to_string(*builder);
-}
-
 process_finish :: (options: Jaidoc_Options) {
     if options.log_level == .VERBOSE {
         print("JaidocProcessor finished, which saw % messages.\n", num_messages);
     }
     
-    generate_markdown_docs(options);
     generate_html_docs(options);
 
     // Clean up
