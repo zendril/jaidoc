@@ -8,10 +8,49 @@
 #import "Compiler";
 #import "Basic";
 #import "File";
-#import "String";
+File_Utilities :: #import "File_Utilities";
+String :: #import "String";
 
+get_filename_from_path :: (path: string) -> string {
+    last_slash := -1;
+    for i: 0..path.count-1 {
+        if path[i] == #char "/" || path[i] == #char "\\" {
+            last_slash = i;
+        }
+    }
 
-#import "File_Utilities";
+    if last_slash == -1 {
+        return path;
+    }
+
+    result := path;
+    result.data += (last_slash + 1);
+    result.count -= (last_slash + 1);
+    return result;
+}
+
+path_strip_extension :: (path: string) -> string {
+    last_dot_index := -1;
+    // Find the last dot.
+    for i: path.count-1..0 {
+        if path[i] == #char "." {
+            last_dot_index = i;
+            break;
+        }
+        // Don't go past a path separator.
+        if path[i] == #char "/" || path[i] == #char "\\" {
+            break;
+        }
+    }
+
+    if last_dot_index > 0 {
+        result := path;
+        result.count = last_dot_index;
+        return result;
+    }
+
+    return path;
+}
 
 LogLevel :: enum {
     QUIET;
@@ -503,7 +542,7 @@ generate_declarations_markdown :: (declarations: [] Declaration_Info, lines: *[.
 // New function to generate markdown documentation
 generate_markdown_docs :: (options: Jaidoc_Options) {
     // Create output directory
-    if !file_exists(options.output_directory) {
+    if !File_Utilities.file_exists(options.output_directory) {
         make_directory_if_it_does_not_exist(options.output_directory, true);
         debug_print(options, "Created output directory: %\n", options.output_directory);
     }
@@ -542,7 +581,7 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
     }
     
     // Join all lines with newlines
-    index_content := join(..index_lines, "\n");
+    index_content := String.join(..index_lines, "\n");
     index_content = sprint("%\n", index_content); // Add final newline
     
     success := write_entire_file(index_file_path, index_content);
@@ -568,7 +607,7 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
         }
         
         // Join all lines with newlines
-        file_content := join(..file_lines, "\n");
+        file_content := String.join(..file_lines, "\n");
         file_content = sprint("%\n", file_content); // Add final newline
         
         // Write to file
@@ -606,7 +645,7 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
         }
         
         // Join all lines with newlines
-        module_content := join(..module_lines, "\n");
+        module_content := String.join(..module_lines, "\n");
         module_content = sprint("%\n", module_content); // Add final newline
         
         // Write to file
@@ -622,12 +661,268 @@ generate_markdown_docs :: (options: Jaidoc_Options) {
     }
 }
 
+generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] string) {
+    // Group declarations by kind
+    variables: [..]Declaration_Info;
+    procedures: [..]Declaration_Info;
+    structs: [..]Declaration_Info;
+    enums: [..]Declaration_Info;
+    unions: [..]Declaration_Info;
+    constants: [..]Declaration_Info;
+
+    for decl: declarations {
+        if !decl.is_public continue;
+        if decl.kind == {
+            case .VARIABLE;   array_add(*variables, decl);
+            case .PROCEDURE;  array_add(*procedures, decl);
+            case .STRUCT;     array_add(*structs, decl);
+            case .ENUM;       array_add(*enums, decl);
+            case .UNION;      array_add(*unions, decl);
+            case .CONSTANT;   array_add(*constants, decl);
+        }
+    }
+
+    // Generate HTML for each section
+    if procedures.count > 0 {
+        array_add(lines, "<div class=\"declaration-section\">");
+        array_add(lines, "<h3>Procedures</h3>");
+        for decl: procedures {
+            // Simplified representation for now
+            array_add(lines, tprint("<h4>%</h4>", decl.name));
+            array_add(lines, tprint("<pre><code>%</code></pre>", decl.type_string));
+        }
+        array_add(lines, "</div>");
+    }
+
+    if structs.count > 0 {
+        array_add(lines, "<div class=\"declaration-section\">");
+        array_add(lines, "<h3>Structs</h3>");
+        for decl: structs {
+            array_add(lines, tprint("<h4>%</h4>", decl.name));
+            array_add(lines, tprint("<pre><code>%</code></pre>", decl.type_string));
+        }
+        array_add(lines, "</div>");
+    }
+    
+    if enums.count > 0 {
+        array_add(lines, "<div class=\"declaration-section\">");
+        array_add(lines, "<h3>Enums</h3>");
+        for decl: enums {
+            array_add(lines, tprint("<h4>%</h4>", decl.name));
+            array_add(lines, tprint("<pre><code>%</code></pre>", decl.type_string));
+        }
+        array_add(lines, "</div>");
+    }
+    
+    // ... Add other types as needed (unions, constants, etc.)
+}
+
+
+// New function to generate HTML documentation
+generate_html_docs :: (options: Jaidoc_Options) {
+    html_output_dir := String.join(options.output_directory, "/html", separator="");
+    if !make_directory_if_it_does_not_exist(html_output_dir, true) {
+        print("Error: Could not create HTML output directory: %\n", html_output_dir);
+        return;
+    }
+
+    css_dir := String.join(html_output_dir, "/css", separator="");
+    if !make_directory_if_it_does_not_exist(css_dir, true) {
+        print("Error: Could not create CSS directory: %\n", css_dir);
+        return;
+    }
+
+    css_content := #string END
+/* General Body Styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #121212;
+    color: #e0e0e0;
+    display: flex;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    width: 250px;
+    background-color: #1e1e1e;
+    padding: 20px;
+    height: 100vh;
+    position: fixed;
+    overflow-y: auto;
+    border-right: 1px solid #333;
+}
+
+.sidebar h2 {
+    color: #ffffff;
+    margin-top: 0;
+}
+
+.sidebar ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.sidebar ul li a {
+    color: #a0a0a0;
+    text-decoration: none;
+    display: block;
+    padding: 8px 15px;
+    border-radius: 4px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.sidebar ul li a:hover,
+.sidebar ul li a.active {
+    background-color: #333;
+    color: #ffffff;
+}
+
+/* Main Content Styles */
+.main-content {
+    margin-left: 270px; /* Sidebar width + some padding */
+    padding: 20px 40px;
+    width: calc(100% - 270px);
+}
+
+h1, h2, h3 {
+    color: #ffffff;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+pre {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    background-color: #282828;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+pre code {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+a {
+    color: #4a90e2;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Declaration sections */
+.declaration-section {
+    margin-bottom: 30px;
+}
+
+.declaration-section h3 {
+    margin-bottom: 15px;
+}
+END;
+    css_path := String.join(css_dir, "/main.css", separator="");
+    write_entire_file(css_path, css_content);
+
+    // --- Generate sidebar and file pages ---
+    sidebar_links: [..]string;
+
+    // Process main files
+    for file_info: doc_model.main_files {
+        file_name_without_ext := path_strip_extension(get_filename_from_path(file_info.path));
+        html_file_name := String.join(file_name_without_ext, ".html", separator="");
+        array_add(*sidebar_links, String.join("<li><a href=\"", html_file_name, "\">", file_name_without_ext, "</a></li>", separator=""));
+
+        // Generate content for this file's page
+        page_lines: [..]string;
+        array_add(*page_lines, String.join("<h1>", file_info.path, "</h1>", separator=""));
+        generate_declarations_html(file_info.declarations, *page_lines);
+        
+        page_content := String.join(..page_lines, "\n");
+        write_html_page(html_output_dir, html_file_name, "Main Files", page_content, sidebar_links);
+    }
+
+    // Process modules
+    for module_info: doc_model.modules {
+        html_file_name := String.join(module_info.name, ".html", separator="");
+        array_add(*sidebar_links, String.join("<li><a href=\"", html_file_name, "\">", module_info.name, "</a></li>", separator=""));
+
+        page_lines: [..]string;
+        array_add(*page_lines, String.join("<h1>Module: ", module_info.name, "</h1>", separator=""));
+        for file_info: module_info.files {
+            array_add(*page_lines, String.join("<h2>File: ", file_info.path, "</h2>", separator=""));
+            generate_declarations_html(file_info.declarations, *page_lines);
+        }
+
+        page_content := String.join(..page_lines, "\n");
+        write_html_page(html_output_dir, html_file_name, module_info.name, page_content, sidebar_links);
+    }
+
+    // Write main index.html with populated sidebar
+    index_content := get_html_page_wrapper("Welcome", "<header><h1>Welcome to Jaidoc</h1><p>Select a module or file from the sidebar to view its documentation.</p></header>", sidebar_links);
+    index_path := String.join(html_output_dir, "/index.html", separator="");
+    write_entire_file(index_path, index_content);
+
+
+    if options.log_level != .QUIET {
+        print("Generated HTML documentation in: %\n", html_output_dir);
+    }
+}
+
+write_html_page :: (output_dir: string, file_name: string, title: string, content: string, sidebar_links: [] string) {
+    page_wrapper := get_html_page_wrapper(title, content, sidebar_links);
+    file_path := String.join(output_dir, "/", file_name, separator="");
+    write_entire_file(file_path, page_wrapper);
+}
+
+get_html_page_wrapper :: (title: string, content: string, sidebar_links: [] string) -> string {
+    sidebar_html := String.join(..sidebar_links, "\n");
+
+    builder: String_Builder;
+    append(*builder, "<!DOCTYPE html>\n");
+    append(*builder, "<html lang=\"en\">\n");
+    append(*builder, "<head>\n");
+    append(*builder, "    <meta charset=\"UTF-8\">\n");
+    append(*builder, "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
+    append(*builder, String.join("    <title>", title, " - Jaidoc</title>\n", separator=""));
+    append(*builder, "    <link rel=\"stylesheet\" href=\"css/main.css\">\n");
+    append(*builder, "</head>\n");
+    append(*builder, "<body>\n");
+    append(*builder, "    <aside class=\"sidebar\">\n");
+    append(*builder, "        <h2>Modules & Files</h2>\n");
+    append(*builder, "        <nav>\n");
+    append(*builder, "            <ul>\n");
+    append(*builder, sidebar_html);
+    append(*builder, "            </ul>\n");
+    append(*builder, "        </nav>\n");
+    append(*builder, "    </aside>\n");
+    append(*builder, "    <main class=\"main-content\">\n");
+    append(*builder, content);
+    append(*builder, "    </main>\n");
+    append(*builder, "</body>\n");
+    append(*builder, "</html>\n");
+    
+    return builder_to_string(*builder);
+}
+
 process_finish :: (options: Jaidoc_Options) {
     if options.log_level == .VERBOSE {
         print("JaidocProcessor finished, which saw % messages.\n", num_messages);
     }
     
-    generate_markdown_docs(options); // Call the new function here
+    generate_markdown_docs(options);
+    generate_html_docs(options);
 
     // Clean up
     array_free(target_files);

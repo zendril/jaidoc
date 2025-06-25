@@ -110,7 +110,7 @@ Command :: enum_flags u8 {
     set_build_options(sample_options, sample_workspace);
 
     // Configure Jaidoc for this specific workspace
-    sample_jaidoc_options.output_directory = "target/docs/";
+    sample_jaidoc_options.output_directory = "target/docs";
     sample_jaidoc_options.project_root = #filepath;
 
 
