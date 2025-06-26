@@ -99,6 +99,7 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
     - [ ] Implement HTML generation in `jaidoc_plugin` or as a separate step in `build.jai`.
     - [ ] Output HTML files to a designated directory (e.g., `target/docs/html`).
     - [ ] Style the HTML to match the "main-screen" mockup.
+    - [ ] Allow the user of this library to pass in the name to appear in the top left.
 - **Deliverables:**
     - `jaidoc_plugin` (or build process) that generates HTML documentation.
     - Sample HTML output for `src/sample/sample.jai`.

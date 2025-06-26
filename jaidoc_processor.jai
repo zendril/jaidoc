@@ -81,6 +81,31 @@ Declaration_Kind :: enum {
     TYPE_ALIAS;
 }
 
+Nav_Item_Kind :: enum {
+    HEADER;
+    LINK;
+}
+
+Nav_Item :: struct {
+    kind: Nav_Item_Kind;
+    text: string;
+    id: string;
+    icon_path: string;
+}
+
+get_icon_path :: (kind: Declaration_Kind) -> string {
+    if kind == {
+        case .PROCEDURE; return "assets/icons/procedure.svg";
+        case .STRUCT; return "assets/icons/struct.svg";
+        case .ENUM; return "assets/icons/enum.svg";
+        case .UNION; return "assets/icons/union.svg";
+        case .CONSTANT; return "assets/icons/constant.svg";
+        case .VARIABLE; return "assets/icons/global_variable.svg";
+        case .TYPE_ALIAS; return "assets/icons/global_variable.svg"; // Placeholder for now
+    }
+    return ""; // Default empty string
+}
+
 Declaration_Info :: struct {
     name: string;
     kind: Declaration_Kind;
@@ -377,7 +402,7 @@ print_documentation_summary :: (options: Jaidoc_Options) {
     print("=============================\n");
 }
 
-generate_html_page :: (title: string, body_html: string, nav_links: [] string) -> string {
+generate_html_page :: (title: string, body_html: string, nav_links: [] Nav_Item, module_links: [] string, main_files: [] File_Info) -> string {
     builder: String_Builder;
     
     String.append(*builder, "<!DOCTYPE html>\n");
@@ -390,6 +415,29 @@ generate_html_page :: (title: string, body_html: string, nav_links: [] string) -
     String.append(*builder, "</head>\n");
     String.append(*builder, "<body>\n");
     
+    // Left Sidebar
+    String.append(*builder, "    <div class=\"left-sidebar\">\n");
+    String.append(*builder, "        <h2>Jaidoc</h2>\n");
+    String.append(*builder, "        <div class=\"search-bar\">\n");
+    String.append(*builder, "            <input type=\"text\" placeholder=\"Search\">\n");
+    String.append(*builder, "        </div>\n");
+    String.append(*builder, "        <h3>MAIN FILES</h3>\n");
+    String.append(*builder, "        <ul>\n");
+    for file_info: main_files {
+        file_html_name := "file_main.html";
+        file_name := get_filename_from_path(file_info.path);
+        String.append(*builder, tprint("            <li><a href=\"%\">%</a></li>\n", file_html_name, file_name));
+    }
+    String.append(*builder, "        </ul>\n");
+    String.append(*builder, "        <h3>MODULES</h3>\n");
+    String.append(*builder, "        <ul>\n");
+    for link: module_links {
+        link_href := sprint("module_%.html", link);
+        String.append(*builder, tprint("            <li><a href=\"%\">%</a></li>\n", link_href, link));
+    }
+    String.append(*builder, "        </ul>\n");
+    String.append(*builder, "    </div>\n");
+    
     // Main Content
     String.append(*builder, "    <div class=\"main-content\">\n");
     String.append(*builder, body_html);
@@ -400,12 +448,14 @@ generate_html_page :: (title: string, body_html: string, nav_links: [] string) -
         String.append(*builder, "    <div class=\"right-nav\">\n");
         String.append(*builder, "        <h3>On this page</h3>\n");
         String.append(*builder, "        <ul>\n");
-        for link: nav_links {
-            link_href := String.replace(link, " ", "-");
-            String.append(*builder, tprint("            <li><a href=\"#%\">%</a></li>\n", link_href, link));
+        for item: nav_links {
+            if item.kind == .HEADER {
+                String.append(*builder, tprint("            <h3 class=\"nav-section-header\">%</h3>\n", item.text));
+            } else if item.kind == .LINK {
+                String.append(*builder, tprint("            <li><a href=\"#%\"><img src=\"../%\" alt=\"% Icon\" class=\"icon\">%</a></li>\n", item.id, item.icon_path, item.text, item.text));
+            }
         }
         String.append(*builder, "        </ul>\n");
-        String.append(*builder, "    </div>\n");
     }
     
     String.append(*builder, "</body>\n");
@@ -414,8 +464,8 @@ generate_html_page :: (title: string, body_html: string, nav_links: [] string) -
     return builder_to_string(*builder);
 }
 
-generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] string) -> [..]string {
-    nav_links: [..]string;
+generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] string) -> [..]Nav_Item {
+    nav_links: [..]Nav_Item;
     
     if declarations.count == 0 {
         array_add(lines, "        <p>No declarations found in this file.</p>");
@@ -446,87 +496,157 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
 
     // Generate HTML for each section
     if procedures.count > 0 {
-        array_add(*nav_links, "Procedures");
+        header_item: Nav_Item; 
+        header_item.kind = .HEADER;
+        header_item.text = "PROCEDURES";
+        array_add(*nav_links, header_item);
+
         array_add(lines, "        <div class=\"declaration-section\">");
         array_add(lines, "            <h3 id=\"procedures\">Procedures</h3>");
         for decl: procedures {
-            array_add(lines, tprint("            <h4>%</h4>", decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
-            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
+            link_item: Nav_Item;
+            link_item.kind = .LINK;
+            link_item.id = tprint("procedure_%_%", decl.name, decl.line_number);
+            link_item.text = decl.name;
+            link_item.icon_path = get_icon_path(decl.kind);
+            array_add(*nav_links, link_item);
+
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
         }
         array_add(lines, "        </div>");
     }
 
     if structs.count > 0 {
-        array_add(*nav_links, "Structs");
+        header_item: Nav_Item;
+        header_item.kind = .HEADER;
+        header_item.text = "STRUCTS";
+        array_add(*nav_links, header_item);
+
         array_add(lines, "        <div class=\"declaration-section\">");
         array_add(lines, "            <h3 id=\"structs\">Structs</h3>");
         for decl: structs {
-            array_add(lines, tprint("            <h4>%</h4>", decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
-            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
+            link_item: Nav_Item;
+            link_item.kind = .LINK;
+            link_item.id = tprint("struct_%_%", decl.name, decl.line_number);
+            link_item.text = decl.name;
+            link_item.icon_path = get_icon_path(decl.kind);
+            array_add(*nav_links, link_item);
+
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
         }
         array_add(lines, "        </div>");
     }
     
     if enums.count > 0 {
-        array_add(*nav_links, "Enums");
-        array_add(lines, "        <div class=\"declaration-section\">");
+        header_item: Nav_Item;
+        header_item.kind = .HEADER;
+        header_item.text = "ENUMS";
+        array_add(*nav_links, header_item);
+
+        array_add(lines, "        <div class=\"declaration-section\">\n");
         array_add(lines, "            <h3 id=\"enums\">Enums</h3>");
         for decl: enums {
-            array_add(lines, tprint("            <h4>%</h4>", decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
-            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
+            link_item: Nav_Item;
+            link_item.kind = .LINK;
+            link_item.id = tprint("enum_%_%", decl.name, decl.line_number);
+            link_item.text = decl.name;
+            link_item.icon_path = get_icon_path(decl.kind);
+            array_add(*nav_links, link_item);
+
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
         }
         array_add(lines, "        </div>");
     }
     
     if unions.count > 0 {
-        array_add(*nav_links, "Unions");
+        header_item: Nav_Item;
+        header_item.kind = .HEADER;
+        header_item.text = "UNIONS";
+        array_add(*nav_links, header_item);
+
         array_add(lines, "        <div class=\"declaration-section\">");
         array_add(lines, "            <h3 id=\"unions\">Unions</h3>");
         for decl: unions {
-            array_add(lines, tprint("            <h4>%</h4>", decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
-            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
+            link_item: Nav_Item;
+            link_item.kind = .LINK;
+            link_item.id = tprint("union_%_%", decl.name, decl.line_number);
+            link_item.text = decl.name;
+            link_item.icon_path = get_icon_path(decl.kind);
+            array_add(*nav_links, link_item);
+
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
         }
         array_add(lines, "        </div>");
     }
     
     if type_aliases.count > 0 {
-        array_add(*nav_links, "Type Aliases");
-        array_add(lines, "        <div class=\"declaration-section\">");
-        array_add(lines, "            <h3 id=\"type-aliases\">Type Aliases</h3>");
+        header_item: Nav_Item;
+        header_item.kind = .HEADER;
+        header_item.text = "TYPE ALIASES";
+        array_add(*nav_links, header_item);
+
+        array_add(lines, "        <div class=\"declaration-section\">\n");
+        array_add(lines, "            <h3 id=\"type-aliases\">Type Aliases</h3>\n");
         for decl: type_aliases {
-            array_add(lines, tprint("            <h4>%</h4>", decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
-            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
+            link_item: Nav_Item;
+            link_item.kind = .LINK;
+            link_item.id = tprint("type_alias_%_%", decl.name, decl.line_number);
+            link_item.text = decl.name;
+            link_item.icon_path = get_icon_path(decl.kind);
+            array_add(*nav_links, link_item);
+
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>\n", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.type_string));
         }
-        array_add(lines, "        </div>");
+        array_add(lines, "        </div>\n");
     }
     
     if constants.count > 0 {
-        array_add(*nav_links, "Constants");
-        array_add(lines, "        <div class=\"declaration-section\">");
-        array_add(lines, "            <h3 id=\"constants\">Constants</h3>");
+        header_item: Nav_Item;
+        header_item.kind = .HEADER;
+        header_item.text = "CONSTANTS";
+        array_add(*nav_links, header_item);
+
+        array_add(lines, "        <div class=\"declaration-section\">\n");
+        array_add(lines, "            <h3 id=\"constants\">Constants</h3>\n");
         for decl: constants {
-            array_add(lines, tprint("            <h4>%</h4>", decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
-            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
+            link_item: Nav_Item;
+            link_item.kind = .LINK;
+            link_item.id = tprint("constant_%_%", decl.name, decl.line_number);
+            link_item.text = decl.name;
+            link_item.icon_path = get_icon_path(decl.kind);
+            array_add(*nav_links, link_item);
+
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>\n", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.type_string));
         }
-        array_add(lines, "        </div>");
+        array_add(lines, "        </div>\n");
     }
     
     if variables.count > 0 {
-        array_add(*nav_links, "Variables");
-        array_add(lines, "        <div class=\"declaration-section\">");
-        array_add(lines, "            <h3 id=\"variables\">Variables</h3>");
+        header_item: Nav_Item;
+        header_item.kind = .HEADER;
+        header_item.text = "GLOBAL VARIABLES";
+        array_add(*nav_links, header_item);
+
+        array_add(lines, "        <div class=\"declaration-section\">\n");
+        array_add(lines, "            <h3 id=\"variables\">Global Variables</h3>\n");
         for decl: variables {
-            array_add(lines, tprint("            <h4>%</h4>", decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\">%</div>", decl.type_string));
-            array_add(lines, tprint("            <p><strong>Location:</strong> Line %, Column %</p>", decl.line_number, decl.column_number));
+            link_item: Nav_Item;
+            link_item.kind = .LINK;
+            link_item.id = tprint("variable_%_%", decl.name, decl.line_number);
+            link_item.text = decl.name;
+            link_item.icon_path = get_icon_path(decl.kind);
+            array_add(*nav_links, link_item);
+
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>\n", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.type_string));
         }
-        array_add(lines, "        </div>");
+        array_add(lines, "        </div>\n");
     }
     
     return nav_links;
@@ -555,12 +675,82 @@ body {
     margin: 0;
     padding: 0;
     display: flex;
+    background-color: #121212;
+    color: #E0E0E0;
+}
+
+/* Left Sidebar Styles */
+.left-sidebar {
+    width: 240px;
+    min-width: 240px;
+    padding: 20px;
+    background-color: #1A1A1A;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+}
+
+.left-sidebar h2 {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #333;
+    background-color: #2C2C2C;
+    color: #E0E0E0;
+}
+
+.nav-buttons {
+    margin: 20px 0;
+}
+
+.nav-buttons button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border: 1px solid #333;
+    background-color: #2C2C2C;
+    color: #E0E0E0;
+    cursor: pointer;
+}
+
+.left-sidebar h3 {
+    font-size: 0.9em;
+    color: #888;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+}
+
+.left-sidebar ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.left-sidebar li a {
+    text-decoration: none;
+    color: #E0E0E0;
+    display: block;
+    padding: 8px 10px;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+}
+
+.left-sidebar li a:hover, .left-sidebar li a.active {
+    background-color: #333;
 }
 
 /* Main Content Styles */
 .main-content {
     flex-grow: 1;
-    padding: 20px;
+    padding: 40px;
 }
 
 /* Right Navigation Styles */
@@ -568,8 +758,6 @@ body {
     width: 220px;
     min-width: 220px;
     padding: 20px;
-    border-left: 1px solid #ccc;
-    background-color: #f8f8f8;
     height: 100vh;
     position: sticky;
     top: 0;
@@ -578,8 +766,9 @@ body {
 
 .right-nav h3 {
     margin-top: 0;
-    color: #333;
-    font-size: 1.1em;
+    color: #888;
+    font-size: 0.9em;
+    letter-spacing: 1px;
 }
 
 .right-nav ul {
@@ -590,64 +779,106 @@ body {
 
 .right-nav li a {
     text-decoration: none;
-    color: #333;
+    color: #AAA;
     display: block;
     padding: 5px 0;
     border-radius: 3px;
-    transition: background-color 0.2s, color 0.2s;
+    transition: color 0.2s;
 }
 
 .right-nav li a:hover {
-    color: #000;
-    background-color: #eee;
-    padding-left: 5px;
+    color: #E0E0E0;
 }
 
 /* Header Styles */
 h1, h2, h3, h4, h5, h6 {
-    scroll-margin-top: 10px;
-    color: #333;
+    scroll-margin-top: 20px;
+    color: #E0E0E0;
 }
 
 h1 {
-    border-bottom: 2px solid #eee;
+    font-size: 2.5em;
     padding-bottom: 10px;
+    margin-bottom: 0;
 }
 
 h2 {
-    border-bottom: 1px solid #eee;
+    font-size: 1.8em;
+    border-bottom: 1px solid #333;
     padding-bottom: 5px;
+}
+
+.filepath {
+    font-size: 0.9em;
+    color: #888;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.module-import-path {
+    font-size: 0.9em;
+    color: #888;
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
 }
 
 /* Declaration Section Styles */
 .declaration-section {
-    margin-bottom: 30px;
+    margin-bottom: 40px;
 }
 
 .declaration-section h3 {
-    color: #2c3e50;
-    margin-bottom: 15px;
+    color: #E0E0E0;
+    margin-bottom: 20px;
+    font-size: 1.5em;
 }
 
-.declaration-section h4 {
-    color: #34495e;
+.declaration-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 10px;
+}
+
+.declaration-header h4 {
+    color: #E0E0E0;
+    font-size: 1.2em;
+    margin: 0;
+}
+
+.source-link {
+    color: #888;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.source-link:hover {
+    text-decoration: underline;
 }
 
 /* Code Block Styles */
 .code-block {
-    background-color: #f4f4f4;
-    border: 1px solid #ddd;
-    padding: 10px;
+    background-color: #1A1A1A;
+    border: 1px solid #333;
+    padding: 15px;
     border-radius: 5px;
     margin: 10px 0;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 0.9em;
+    overflow-x: auto;
+}
+
+.code-block pre {
+    margin: 0;
 }
 
 /* Link Styles */
 a {
-    color: #3498db;
+    color: #58A6FF;
     text-decoration: none;
 }
 
@@ -656,18 +887,34 @@ a:hover {
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+    .right-nav {
+        display: none;
+    }
+}
+
 @media (max-width: 768px) {
     body {
         flex-direction: column;
     }
     
-    .right-nav {
+    .left-sidebar {
         width: 100%;
         height: auto;
         position: static;
-        border-left: none;
-        border-top: 1px solid #ccc;
     }
+    
+    .main-content {
+        padding: 20px;
+    }
+}
+
+/* Icon Styles for Right Nav */
+.right-nav .icon {
+    width: 16px; /* Adjust as needed */
+    height: 16px; /* Adjust as needed */
+    margin-right: 8px;
+    vertical-align: middle;
 }
 END;
     
@@ -678,6 +925,12 @@ END;
     } else {
         debug_print(options, "Failed to create CSS file at %\n", css_file_path);
     }
+
+    // Copy assets directory
+    assets_source_path := "assets";
+    assets_dest_path := sprint("%/assets", options.output_directory);
+    File_Utilities.copy_directory(assets_source_path, assets_dest_path);
+    debug_print(options, "Attempted to copy assets from % to %\n", assets_source_path, assets_dest_path);
     
     // Generate and write index.html file
     index_file_path := sprint("%/index.html", options.output_directory);
@@ -699,10 +952,12 @@ END;
     
     array_add(*index_body_lines, "        <h2>Modules</h2>");
     
+    module_links: [..]string;
     if doc_model.modules.count == 0 {
         array_add(*index_body_lines, "        <p>No modules found.</p>");
     } else {
         for module_info: doc_model.modules {
+            array_add(*module_links, module_info.name);
             link_line := sprint("        <p><a href=\"module_%.html\">%</a></p>", module_info.name, module_info.name);
             array_add(*index_body_lines, link_line);
         }
@@ -710,8 +965,8 @@ END;
     
     // Create index page
     index_body := String.join(..index_body_lines, "\n");
-    index_nav_links: [..]string; // No navigation for index page
-    index_html := generate_html_page("Jaidoc Documentation", index_body, index_nav_links);
+    index_nav_links: [..]Nav_Item; // No navigation for index page
+    index_html := generate_html_page("Jaidoc Documentation", index_body, index_nav_links, module_links, doc_model.main_files);
     
     index_success := write_entire_file(index_file_path, index_html);
     if index_success {
@@ -723,11 +978,13 @@ END;
     // Generate documentation for main files
     for file_info: doc_model.main_files {
         file_body_lines: [..] string;
-        file_header := sprint("        <h1>File: %</h1>", file_info.path);
+        file_name := get_filename_from_path(file_info.path);
+        relative_path := String.replace(file_info.path, options.project_root, "");
+        file_header := sprint("        <h1>%</h1>\n        <p class=\"filepath\">%</p>", file_name, relative_path);
         array_add(*file_body_lines, file_header);
         array_add(*file_body_lines, "        <h2>Declarations</h2>");
         
-        nav_links: [..]string;
+        nav_links: [..]Nav_Item;
         if file_info.declarations.count == 0 {
             array_add(*file_body_lines, "        <p>No declarations found in this file.</p>");
         } else {
@@ -737,7 +994,7 @@ END;
         // Create HTML page
         file_body := String.join(..file_body_lines, "\n");
         file_title := sprint("File: %", file_info.path);
-        file_html := generate_html_page(file_title, file_body, nav_links);
+        file_html := generate_html_page(file_title, file_body, nav_links, module_links, doc_model.main_files);
         
         // Write to file
         file_output_path := sprint("%/file_main.html", options.output_directory);
@@ -754,15 +1011,19 @@ END;
         module_body_lines: [..] string;
         
         module_header := sprint("        <h1>Module: %</h1>", module_info.name);
-        import_path_line := sprint("        <p><strong>Import Path:</strong> <code>%</code></p>", module_info.import_path);
+        import_path_line := sprint("        <p class=\"module-import-path\"><strong>Import Path:</strong> <code>%</code></p>", module_info.import_path);
         
         array_add(*module_body_lines, module_header);
+        
+        if module_info.files.count > 0 {
+            relative_path := String.replace(module_info.files[0].path, options.project_root, "");
+            array_add(*module_body_lines, tprint("        <p class=\"filepath\">%</p>", relative_path));
+        }
         array_add(*module_body_lines, import_path_line);
         
-        nav_links: [..]string;
+        nav_links: [..]Nav_Item;
         for file_info: module_info.files {
-            file_header := sprint("        <h2>File: %</h2>", file_info.path);
-            array_add(*module_body_lines, file_header);
+            
             
             if file_info.declarations.count == 0 {
                 array_add(*module_body_lines, "        <p>No declarations found in this file.</p>");
@@ -778,7 +1039,7 @@ END;
         // Create HTML page
         module_body := String.join(..module_body_lines, "\n");
         module_title := sprint("Module: %", module_info.name);
-        module_html := generate_html_page(module_title, module_body, nav_links);
+        module_html := generate_html_page(module_title, module_body, nav_links, module_links, doc_model.main_files);
         
         // Write to file
         module_output_path := sprint("%/module_%.html", options.output_directory, module_info.name);

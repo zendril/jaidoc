@@ -5,3 +5,4 @@ src/sample/*.exe
 src/sample/*.pdb
 .env
 plan.md
+.gemini
