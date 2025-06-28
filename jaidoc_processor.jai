@@ -10,6 +10,7 @@
 #import "File";
 File_Utilities :: #import "File_Utilities";
 String :: #import "String";
+#import "Hash_Table";
 
 get_filename_from_path :: (path: string) -> string {
     last_slash := -1;
@@ -27,6 +28,109 @@ get_filename_from_path :: (path: string) -> string {
     result.data += (last_slash + 1);
     result.count -= (last_slash + 1);
     return result;
+}
+
+// Cache for file contents to avoid reading the same file multiple times
+file_content_cache: Table(string, string);
+
+extract_source_code :: (file_path: string, start_line: int, end_line: int, start_col: int, end_col: int) -> string {
+    // Check if we already have this file in cache
+    found, file_content := table_find_new(*file_content_cache, file_path);
+    
+    if !found {
+        // Read the entire file
+        content, success := read_entire_file(file_path);
+        if !success {
+            return "";
+        }
+        
+        // Cache the file content
+        table_add(*file_content_cache, copy_string(file_path), copy_string(content));
+        file_content = content;
+    }
+    
+    // Split content into lines
+    lines: [..] string;
+    current_line_builder: String_Builder;
+    
+    for i: 0..file_content.count-1 {
+        if file_content[i] == #char "\n" {
+            line_str := String.builder_to_string(*current_line_builder);
+            array_add(*lines, line_str);
+            String.reset(*current_line_builder);
+        } else if file_content[i] != #char "\r" {
+            String.append(*current_line_builder, file_content[i]);
+        }
+    }
+    
+    // Add the last line if it doesn't end with newline
+    current_str := String.builder_to_string(*current_line_builder);
+    if current_str.count > 0 {
+        array_add(*lines, current_str);
+    }
+    
+    // Build the source code string using character-precise locations
+    builder: String_Builder;
+    start_idx := start_line - 1;
+    end_idx := end_line - 1;
+
+    if start_idx < 0 || start_idx >= lines.count || end_idx < 0 || end_idx >= lines.count {
+        return ""; // Invalid line numbers
+    }
+
+    if start_idx == end_idx {
+        // Single-line declaration
+        line := lines[start_idx];
+        
+        // Jai columns are 1-based and inclusive.
+        s_col := start_col - 1;
+        e_col := end_col - 1;
+
+        if s_col >= 0 && s_col < line.count && e_col >= s_col && e_col < line.count {
+            slice: string;
+            slice.data = line.data + s_col;
+            slice.count = e_col - s_col + 1;
+            String.append(*builder, slice);
+        } else {
+            // Fallback to the whole line if column info is weird
+            String.append(*builder, line);
+        }
+    } else {
+        // Multi-line declaration
+
+        // First line: from start_col to the end
+        first_line := lines[start_idx];
+        s_col := start_col - 1;
+        if s_col >= 0 && s_col < first_line.count {
+            slice: string;
+            slice.data = first_line.data + s_col;
+            slice.count = first_line.count - s_col;
+            String.append(*builder, slice);
+        } else {
+            String.append(*builder, first_line);
+        }
+        String.append(*builder, "\n");
+
+        // Middle lines: append them completely
+        for i: start_idx + 1..end_idx - 1 {
+            String.append(*builder, lines[i]);
+            String.append(*builder, "\n");
+        }
+
+        // Last line: from the beginning to end_col (inclusive)
+        last_line := lines[end_idx];
+        e_col := end_col - 1;
+        if e_col >= 0 && e_col < last_line.count {
+            slice: string;
+            slice.data = last_line.data;
+            slice.count = e_col + 1;
+            String.append(*builder, slice);
+        } else {
+            String.append(*builder, last_line);
+        }
+    }
+
+    return String.builder_to_string(*builder);
 }
 
 path_strip_extension :: (path: string) -> string {
@@ -66,7 +170,7 @@ Jaidoc_Options :: struct {
 
 debug_print :: (options: Jaidoc_Options, fmt: string, args: ..Any) {
     if options.log_level == .VERBOSE {
-        print(fmt, args);
+        print(fmt, ..args);
     }
 }
 
@@ -115,6 +219,7 @@ Declaration_Info :: struct {
     is_public: bool;
     type_string: string;
     comment: string;
+    source_code: string;  // The actual source code for this declaration
     
     parameters: [..]string;
     return_type: string;
@@ -362,6 +467,106 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
                     decl_info.type_string = copy_string("variable");
                 }
                 
+                // Get the complete location range for the declaration
+                start_line: int;
+                end_line: int;
+                start_col: int;
+                end_col: int;
+                
+                // Debug: Print the raw compiler location BEFORE any modifications
+                debug_print(options, "RAW compiler location for '%': l0=%, l1=%, c0=%, c1=%\n", 
+                           decl_info.name, code_declaration.location.l0, code_declaration.location.l1, 
+                           code_declaration.location.c0, code_declaration.location.c1);
+                
+                // Start with the declaration's own location
+                start_line = code_declaration.location.l0;
+                end_line = code_declaration.location.l1;
+                start_col = code_declaration.location.c0;
+                end_col = code_declaration.location.c1;
+                
+                // Try to extend the range to include the body/block
+                if code_declaration.expression {
+                    expr := code_declaration.expression;
+                    debug_print(options, "Expression kind for '%': %\n", decl_info.name, expr.kind);
+                    if expr.kind == {
+                        case .PROCEDURE_HEADER;
+                            proc_header := cast(*Code_Procedure_Header) expr;
+                            if proc_header.body_or_null {
+                                body := proc_header.body_or_null;
+                                debug_print(options, "Procedure % body kind: %\n", decl_info.name, body.kind);
+                                debug_print(options, "Procedure % body location: l0=%, l1=%\n", decl_info.name, body.location.l0, body.location.l1);
+                                
+                                // Check if the body is a PROCEDURE_BODY (which should have a block)
+                                if body.kind == .PROCEDURE_BODY {
+                                    proc_body := cast(*Code_Procedure_Body) body;
+                                    if proc_body.block {
+                                        block := proc_body.block;
+                                        debug_print(options, "Procedure body block location: l0=%, l1=%\n", block.location.l0, block.location.l1);
+                                        // Use the block's end location, which includes the closing brace
+                                        end_line = block.location.l1;
+                                        end_col = block.location.c1;
+                                    } else {
+                                        end_line = body.location.l1;
+                                        end_col = body.location.c1;
+                                    }
+                                } else if body.kind == .BLOCK {
+                                    block := cast(*Code_Block) body;
+                                    // Use the block's end location, which includes the closing brace
+                                    end_line = block.location.l1;
+                                    end_col = block.location.c1;
+                                } else {
+                                    end_line = body.location.l1;
+                                    end_col = body.location.c1;
+                                }
+                                
+                                debug_print(options, "Procedure % has body - extending to line %\n", decl_info.name, end_line);
+                            } else {
+                                // For procedures without body_or_null, try to estimate the body range
+                                // This might happen for procedures that haven't been fully processed yet
+                                debug_print(options, "Procedure % has no body_or_null - estimating range\n", decl_info.name);
+                                
+                                // Extend by a reasonable amount to capture the likely body
+                                end_line = start_line + 10; // Should capture most procedure bodies
+                            }
+                        case .PROCEDURE_BODY;
+                            proc_body := cast(*Code_Procedure_Body) expr;
+                            // For procedure bodies, use the body's location directly
+                            end_line = proc_body.location.l1;
+                            end_col = proc_body.location.c1;
+                            debug_print(options, "Found PROCEDURE_BODY for '%' - extending to line %\n", decl_info.name, end_line);
+                        case .STRUCT;
+                            struct_node := cast(*Code_Struct) expr;
+                            if struct_node.block {
+                                block := struct_node.block;
+                                // Extend end location to include the block
+                                end_line = block.location.l1;
+                                end_col = block.location.c1;
+                            }
+                        case .ENUM;
+                            enum_node := cast(*Code_Enum) expr;
+                            if enum_node.block {
+                                block := enum_node.block;
+                                // Extend end location to include the block
+                                end_line = block.location.l1;
+                                end_col = block.location.c1;
+                            }
+                        case;
+                            debug_print(options, "Unhandled expression kind for '%': %\n", decl_info.name, expr.kind);
+                    }
+                } else {
+                    debug_print(options, "No expression for declaration '%'\n", decl_info.name);
+                }
+                
+                // Debug: Print location info to understand what the compiler is giving us
+                debug_print(options, "Location for %: l0=%, l1=%, c0=%, c1=%\n", decl_info.name, ifx start_line then start_line else -1, ifx end_line then end_line else -1, ifx start_col then start_col else -1, ifx end_col then end_col else -1);
+                
+                // Debug: Print final extraction range
+                debug_print(options, "Extracting for '%': lines % to %\n", decl_info.name, start_line, end_line);
+                
+                // Use the exact location information from the compiler
+                // Extract complete lines from l0 to l1, spanning from c0 to c1
+                decl_info.source_code = copy_string(extract_source_code(filename, start_line, end_line, start_col, end_col));
+                
                 // Add declaration to the appropriate file
                 file_info := find_or_create_file_info(filename);
                 array_add(*file_info.declarations, decl_info);
@@ -512,7 +717,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.source_code));
         }
         array_add(lines, "        </div>");
     }
@@ -534,7 +739,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.source_code));
         }
         array_add(lines, "        </div>");
     }
@@ -556,7 +761,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.source_code));
         }
         array_add(lines, "        </div>");
     }
@@ -578,7 +783,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>", link_item.id, decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.type_string));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.source_code));
         }
         array_add(lines, "        </div>");
     }
@@ -600,7 +805,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>\n", link_item.id, decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.type_string));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.source_code));
         }
         array_add(lines, "        </div>\n");
     }
@@ -622,7 +827,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>\n", link_item.id, decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.type_string));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.source_code));
         }
         array_add(lines, "        </div>\n");
     }
@@ -644,7 +849,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"#\" class=\"source-link\">Source</a></div>\n", link_item.id, decl.name));
-            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.type_string));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>\n", decl.source_code));
         }
         array_add(lines, "        </div>\n");
     }
@@ -765,10 +970,14 @@ body {
 }
 
 .right-nav h3 {
-    margin-top: 0;
+    margin-top: 40px;
     color: #888;
     font-size: 0.9em;
     letter-spacing: 1px;
+}
+
+.right-nav h3:first-child {
+    margin-top: 0;
 }
 
 .right-nav ul {
@@ -1071,6 +1280,7 @@ process_finish :: (options: Jaidoc_Options) {
             free(decl.file_path);
             free(decl.type_string);
             free(decl.comment);
+            free(decl.source_code);
             free(decl.return_type);
             free(decl.initial_value);
             array_free(decl.parameters);
@@ -1089,6 +1299,7 @@ process_finish :: (options: Jaidoc_Options) {
                 free(decl.file_path);
                 free(decl.type_string);
                 free(decl.comment);
+                free(decl.source_code);
                 free(decl.return_type);
                 free(decl.initial_value);
                 array_free(decl.parameters);

@@ -23,6 +23,19 @@ Command :: enum_flags u8 {
     for info_struct.members {
         print("  % : %\n", it.name, it.type);
     }
+
+    info_block := type_info(Code_Block);
+    print("\nCode_Block Members:\n");
+    for info_block.members {
+        print("  % : %\n", it.name, it.type);
+    }
+
+    info_proc := type_info(Code_Procedure_Header);
+    print("\nCode_Procedure_Header Members:\n");
+    for info_proc.members {
+        print("  % : %\n", it.name, it.type);
+    }
+
     info_decl_flags := type_info(Code_Declaration);
     flags_member_type: *Type_Info = null;
     for member: info_decl_flags.members {
