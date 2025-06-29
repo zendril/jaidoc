@@ -254,6 +254,7 @@ Declaration_Info :: struct {
     type_string: string;
     comment: string;
     source_code: string;  // The actual source code for this declaration
+    declaration_code: string; // The actual declaration code for this declaration
     
     parameters: [..]string;
     return_type: string;
@@ -417,6 +418,8 @@ process_declaration :: (decl_info: *Declaration_Info, options: Jaidoc_Options) {
                         }
                     }
                 }
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.l0, decl_info.l1, decl_info.c0, decl_info.c1));
             case .PROCEDURE_BODY;
                 proc_body := cast(*Code_Procedure_Body) expr;
                 // For procedure bodies, use the body's location directly
@@ -431,6 +434,8 @@ process_declaration :: (decl_info: *Declaration_Info, options: Jaidoc_Options) {
                     decl_info.line_end_number = block.location.l1;
                     decl_info.column_end_number = block.location.c1;
                 }
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
             case .ENUM;
                 enum_node := cast(*Code_Enum) expr;
                 if enum_node.block {
@@ -439,6 +444,8 @@ process_declaration :: (decl_info: *Declaration_Info, options: Jaidoc_Options) {
                     decl_info.line_end_number = block.location.l1;
                     decl_info.column_end_number = block.location.c1;
                 }
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
             case .LITERAL;
                 if code_declaration.flags & .IS_CONSTANT != 0 {
                     decl_info.declaration_kind = .CONSTANT;
@@ -447,13 +454,14 @@ process_declaration :: (decl_info: *Declaration_Info, options: Jaidoc_Options) {
                     decl_info.declaration_kind = .VARIABLE;
                     decl_info.type_string = copy_string("variable");
                 }
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
             case;
                 debug_print(options, "Unhandled expression kind for '%': %\n", decl_info.name, expr.kind);
         }
     } else {
         debug_print(options, "No expression for declaration '%': %\n", decl_info.name);
     }
-    decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
     debug_print(options, "Declaration Info: %\n", decl_info.*, indent_spaces = 4);
 }
 
@@ -726,6 +734,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             array_add(*nav_links, link_item);
 
             array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"javascript:void(0);\" class=\"source-link\" onclick=\"toggleSource('%s_source')\">Source</a></div>", link_item.id, decl.name, link_item.id));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.declaration_code));
             array_add(lines, tprint("            <div id=\"%s_source\" class=\"code-block hidden\"><pre><code>%</code></pre></div>", link_item.id, decl.source_code));
         }
         array_add(lines, "        </div>");
@@ -747,8 +756,8 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
 
-            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"javascript:void(0);\" class=\"source-link\" onclick=\"toggleSource('%s_source')\">Source</a></div>", link_item.id, decl.name, link_item.id));
-            array_add(lines, tprint("            <div id=\"%s_source\" class=\"code-block hidden\"><pre><code>%</code></pre></div>", link_item.id, decl.source_code));
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.declaration_code));
         }
         array_add(lines, "        </div>");
     }
@@ -769,8 +778,8 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
 
-            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"javascript:void(0);\" class=\"source-link\" onclick=\"toggleSource('%s_source')\">Source</a></div>", link_item.id, decl.name, link_item.id));
-            array_add(lines, tprint("            <div id=\"%s_source\" class=\"code-block hidden\"><pre><code>%</code></pre></div>", link_item.id, decl.source_code));
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.declaration_code));
         }
         array_add(lines, "        </div>");
     }
@@ -791,8 +800,8 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
 
-            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"javascript:void(0);\" class=\"source-link\" onclick=\"toggleSource('%s_source')\">Source</a></div>", link_item.id, decl.name, link_item.id));
-            array_add(lines, tprint("            <div id=\"%s_source\" class=\"code-block hidden\"><pre><code>%</code></pre></div>", link_item.id, decl.source_code));
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.declaration_code));
         }
         array_add(lines, "        </div>");
     }
@@ -813,8 +822,8 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
 
-            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"javascript:void(0);\" class=\"source-link\" onclick=\"toggleSource('%s_source')\">Source</a></div>\n", link_item.id, decl.name, link_item.id));
-            array_add(lines, tprint("            <div id=\"%s_source\" class=\"code-block hidden\"><pre><code>%</code></pre></div>\n", link_item.id, decl.source_code));
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.declaration_code));
         }
         array_add(lines, "        </div>\n");
     }
@@ -835,8 +844,8 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
 
-            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"javascript:void(0);\" class=\"source-link\" onclick=\"toggleSource('%s_source')\">Source</a></div>\n", link_item.id, decl.name, link_item.id));
-            array_add(lines, tprint("            <div id=\"%s_source\" class=\"code-block hidden\"><pre><code>%</code></pre></div>\n", link_item.id, decl.source_code));
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.declaration_code));
         }
         array_add(lines, "        </div>\n");
     }
@@ -857,8 +866,8 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
 
-            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4><a href=\"javascript:void(0);\" class=\"source-link\" onclick=\"toggleSource('%s_source')\">Source</a></div>\n", link_item.id, decl.name, link_item.id));
-            array_add(lines, tprint("            <div id=\"%s_source\" class=\"code-block hidden\"><pre><code>%</code></pre></div>\n", link_item.id, decl.source_code));
+            array_add(lines, tprint("            <div class=\"declaration-header\"><h4 id=\"%\">%</h4></div>", link_item.id, decl.name));
+            array_add(lines, tprint("            <div class=\"code-block\"><pre><code>%</code></pre></div>", decl.declaration_code));
         }
         array_add(lines, "        </div>\n");
     }
