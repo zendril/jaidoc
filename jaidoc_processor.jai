@@ -724,7 +724,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         array_add(*nav_links, header_item);
 
         array_add(lines, "        <div class=\"declaration-section\">");
-        array_add(lines, "            <h3 id=\"procedures\">Procedures</h3>");
+        array_add(lines, "            <h3 id=\"procedures\"><img src=\"assets/icons/procedure.svg\" alt=\"\" class=\"section-icon\">Procedures</h3>");
         for decl: procedures {
             link_item: Nav_Item;
             link_item.kind = .LINK;
@@ -747,7 +747,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         array_add(*nav_links, header_item);
 
         array_add(lines, "        <div class=\"declaration-section\">");
-        array_add(lines, "            <h3 id=\"structs\">Structs</h3>");
+        array_add(lines, "            <h3 id=\"structs\"><img src=\"assets/icons/struct.svg\" alt=\"\" class=\"section-icon\">Structs</h3>");
         for decl: structs {
             link_item: Nav_Item;
             link_item.kind = .LINK;
@@ -769,7 +769,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         array_add(*nav_links, header_item);
 
         array_add(lines, "        <div class=\"declaration-section\">\n");
-        array_add(lines, "            <h3 id=\"enums\">Enums</h3>");
+        array_add(lines, "            <h3 id=\"enums\"><img src=\"assets/icons/enum.svg\" alt=\"\" class=\"section-icon\">Enums</h3>");
         for decl: enums {
             link_item: Nav_Item;
             link_item.kind = .LINK;
@@ -791,7 +791,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         array_add(*nav_links, header_item);
 
         array_add(lines, "        <div class=\"declaration-section\">");
-        array_add(lines, "            <h3 id=\"unions\">Unions</h3>");
+        array_add(lines, "            <h3 id=\"unions\"><img src=\"assets/icons/union.svg\" alt=\"\" class=\"section-icon\">Unions</h3>");
         for decl: unions {
             link_item: Nav_Item;
             link_item.kind = .LINK;
@@ -813,7 +813,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         array_add(*nav_links, header_item);
 
         array_add(lines, "        <div class=\"declaration-section\">\n");
-        array_add(lines, "            <h3 id=\"type-aliases\">Type Aliases</h3>\n");
+        array_add(lines, "            <h3 id=\"type-aliases\"><img src=\"assets/icons/global_variable.svg\" alt=\"\" class=\"section-icon\">Type Aliases</h3>\n");
         for decl: type_aliases {
             link_item: Nav_Item;
             link_item.kind = .LINK;
@@ -835,7 +835,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         array_add(*nav_links, header_item);
 
         array_add(lines, "        <div class=\"declaration-section\">\n");
-        array_add(lines, "            <h3 id=\"constants\">Constants</h3>\n");
+        array_add(lines, "            <h3 id=\"constants\"><img src=\"assets/icons/constant.svg\" alt=\"\" class=\"section-icon\">Constants</h3>\n");
         for decl: constants {
             link_item: Nav_Item;
             link_item.kind = .LINK;
@@ -857,7 +857,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         array_add(*nav_links, header_item);
 
         array_add(lines, "        <div class=\"declaration-section\">\n");
-        array_add(lines, "            <h3 id=\"variables\">Global Variables</h3>\n");
+        array_add(lines, "            <h3 id=\"variables\"><img src=\"assets/icons/global_variable.svg\" alt=\"\" class=\"section-icon\">Global Variables</h3>\n");
         for decl: variables {
             link_item: Nav_Item;
             link_item.kind = .LINK;
@@ -1062,6 +1062,15 @@ h2 {
     color: #E0E0E0;
     margin-bottom: 20px;
     font-size: 1.5em;
+    display: flex;
+    align-items: center;
+}
+
+.section-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    vertical-align: middle;
 }
 
 .declaration-header {
