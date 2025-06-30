@@ -95,10 +95,10 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
 **Checkpoint 5: HTML Output - Main Screen**
 - **Objective:** Generate HTML documentation based on the "main-screen" mockup.
 - **Tasks:**
-    - [ ] Choose a method for HTML generation (e.g., convert Markdown to HTML, or generate HTML directly from metaprogramming data).
-    - [ ] Implement HTML generation in `jaidoc_plugin` or as a separate step in `build.jai`.
-    - [ ] Output HTML files to a designated directory (e.g., `target/docs/html`).
-    - [ ] Style the HTML to match the "main-screen" mockup.
+    - [x] Choose a method for HTML generation (e.g., convert Markdown to HTML, or generate HTML directly from metaprogramming data).
+    - [x] Implement HTML generation in `jaidoc_plugin` or as a separate step in `build.jai`.
+    - [x] Output HTML files to a designated directory (e.g., `target/docs/html`).
+    - [x] Style the HTML to match the "main-screen" mockup.
     - [ ] Allow the user of this library to pass in the name to appear in the top left.
 - **Deliverables:**
     - `jaidoc_plugin` (or build process) that generates HTML documentation.
@@ -117,8 +117,14 @@ This document outlines the development plan for `jaidoc`, a utility to generate 
 **Future Checkpoints (To Be Detailed):**
 
 - **Checkpoint 7: Doc Comment Support**
-    - [ ] Research Jai's existing comment conventions and popular doc comment styles (e.g., `///`, `//!`).
-    - [ ] Implement parsing of these comments in `jaidoc_plugin`.
+    - [x] Research Jai's existing comment conventions and popular doc comment styles (e.g., `///`, `//!`).
+    - [ ] It appears doc comments are not supported by the compiler we will need to manually implement parsing of the source and correlate to the declarations.
+        - [ ] 1. Parse comments manually from the source files
+        - [ ] 2. Use location information to associate comments with nearby declarations
+        - [ ] 3. Implement heuristics like:
+            - [ ] Comments immediately before a declaration belong to it
+            - [ ] Comments on the same line as a declaration belong to it
+            - [ ] Multi-line comments above a declaration belong to it
     - [ ] Integrate extracted doc comments into Markdown and HTML outputs.
     - [ ] Expand `src/sample/sample.jai` with examples of documented code.
 

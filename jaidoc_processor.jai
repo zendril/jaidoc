@@ -1,10 +1,5 @@
 // jaidoc_processor.jai - Core documentation processing library
 
-
-
-
-
-// Compiler :: #import "Compiler";
 #import "Compiler";
 #import "Basic";
 #import "File";
@@ -242,17 +237,15 @@ Declaration_Info :: struct {
     declaration_kind: Declaration_Kind;
     expression_kind: Code_Node.Kind;
     file_path: string;
-    l0: int;
-    c0: int;
-    l1: int;
-    c1: int;
-    line_start_number: int;
-    column_start_number: int;
-    line_end_number: int;
-    column_end_number: int;
+    declaration_line_start_number: int;
+    declaration_column_start_number: int;
+    declaration_line_end_number: int;
+    declaration_column_end_number: int;
+    procedure_line_start_number: int;
+    procedure_column_start_number: int;
+    procedure_line_end_number: int;
+    procedure_column_end_number: int;
     is_public: bool;
-    type_string: string;
-    comment: string;
     source_code: string;  // The actual source code for this declaration
     declaration_code: string; // The actual declaration code for this declaration
     
@@ -393,7 +386,6 @@ process_declaration :: (decl_info: *Declaration_Info, options: Jaidoc_Options) {
         code_declaration := decl_info.code_declaration;
         decl_info.expression_kind = expr.kind;
         decl_info.declaration_kind = get_declaration_kind(expr);
-        decl_info.type_string = copy_string(extract_type_info(expr));
 
         if expr.kind == {
             case .PROCEDURE_HEADER;
@@ -409,53 +401,53 @@ process_declaration :: (decl_info: *Declaration_Info, options: Jaidoc_Options) {
                         if proc_body.block {
                             block := proc_body.block;
                             debug_print(options, "Procedure % body block location: l0=%, c0=%, l1=%, c1=%\n", decl_info.name, block.location.l0, block.location.c0, block.location.l1, block.location.c1, indent_spaces = 4);
-                            decl_info.line_end_number = block.location.l1;
-                            decl_info.column_end_number = block.location.c1;
+                            decl_info.procedure_line_end_number = block.location.l1;
+                            decl_info.procedure_column_end_number = block.location.c1;
                         } else {
                             debug_print(options, "Procedure % body location: l0=%, c0=%, l1=%, c1=%\n", decl_info.name, body.location.l0, body.location.c0, body.location.l1, body.location.c1, indent_spaces = 4);
-                            decl_info.line_end_number = body.location.l1;
-                            decl_info.column_end_number = body.location.c1;
+                            decl_info.procedure_line_end_number = body.location.l1;
+                            decl_info.procedure_column_end_number = body.location.c1;
                         }
                     }
                 }
-                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
-                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.l0, decl_info.l1, decl_info.c0, decl_info.c1));
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.declaration_line_start_number, decl_info.declaration_line_end_number, decl_info.declaration_column_start_number, decl_info.declaration_column_end_number));
             case .PROCEDURE_BODY;
                 proc_body := cast(*Code_Procedure_Body) expr;
                 // For procedure bodies, use the body's location directly
-                decl_info.line_end_number = proc_body.location.l1;
-                decl_info.column_end_number = proc_body.location.c1;
-                debug_print(options, "Found PROCEDURE_BODY for '%' - extending to line %\n", decl_info.name, decl_info.line_end_number, indent_spaces = 4);
+                decl_info.procedure_line_end_number = proc_body.location.l1;
+                decl_info.procedure_column_end_number = proc_body.location.c1;
+                debug_print(options, "Found PROCEDURE_BODY for '%' - extending to line %\n", decl_info.name, decl_info.procedure_line_end_number, indent_spaces = 4);
             case .STRUCT;
                 struct_node := cast(*Code_Struct) expr;
                 if struct_node.block {
                     block := struct_node.block;
                     // Extend end location to include the block
-                    decl_info.line_end_number = block.location.l1;
-                    decl_info.column_end_number = block.location.c1;
+decl_info.procedure_line_end_number = block.location.l1;
+                    decl_info.procedure_column_end_number = block.location.c1;
                 }
-                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
-                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
             case .ENUM;
                 enum_node := cast(*Code_Enum) expr;
                 if enum_node.block {
                     block := enum_node.block;
                     // Extend end location to include the block
-                    decl_info.line_end_number = block.location.l1;
-                    decl_info.column_end_number = block.location.c1;
+decl_info.procedure_line_end_number = block.location.l1;
+                    decl_info.procedure_column_end_number = block.location.c1;
                 }
-                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
-                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
             case .LITERAL;
                 if code_declaration.flags & .IS_CONSTANT != 0 {
                     decl_info.declaration_kind = .CONSTANT;
-                    decl_info.type_string = copy_string("constant");
+                    // decl_info.type_string = copy_string("constant");
                 } else {
                     decl_info.declaration_kind = .VARIABLE;
-                    decl_info.type_string = copy_string("variable");
+                    // decl_info.type_string = copy_string("variable");
                 }
-                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
-                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.line_start_number, decl_info.line_end_number, decl_info.column_start_number, decl_info.column_end_number));
+                decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
             case;
                 debug_print(options, "Unhandled expression kind for '%': %\n", decl_info.name, expr.kind);
         }
@@ -553,14 +545,14 @@ process_message :: (message: *Message, options: Jaidoc_Options) {
                 
                 decl_info.name = copy_string(declname);
                 decl_info.file_path = copy_string(filename);
-                decl_info.l0 = code_declaration.location.l0;
-                decl_info.l1 = code_declaration.location.l1;
-                decl_info.c0 = code_declaration.location.c0;
-                decl_info.c1 = code_declaration.location.c1;
-                decl_info.line_start_number = code_declaration.location.l0;
-                decl_info.line_end_number = code_declaration.location.l1;
-                decl_info.column_start_number = code_declaration.location.c0;
-                decl_info.column_end_number = code_declaration.location.c1;
+                decl_info.declaration_line_start_number = code_declaration.location.l0;
+                decl_info.declaration_line_end_number = code_declaration.location.l1;
+                decl_info.declaration_column_start_number = code_declaration.location.c0;
+                decl_info.declaration_column_end_number = code_declaration.location.c1;
+                decl_info.procedure_line_start_number = code_declaration.location.l0;
+                decl_info.procedure_line_end_number = code_declaration.location.l1;
+                decl_info.procedure_column_start_number = code_declaration.location.c0;
+                decl_info.procedure_column_end_number = code_declaration.location.c1;
                 decl_info.is_public = is_declaration_public(code_declaration);
                 decl_info.code_declaration = code_declaration;
                 
@@ -728,7 +720,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         for decl: procedures {
             link_item: Nav_Item;
             link_item.kind = .LINK;
-            link_item.id = tprint("procedure_%_%", decl.name, decl.line_start_number);
+            link_item.id = tprint("procedure_%_%", decl.name, decl.procedure_line_start_number);
             link_item.text = decl.name;
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
@@ -751,7 +743,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         for decl: structs {
             link_item: Nav_Item;
             link_item.kind = .LINK;
-            link_item.id = tprint("struct_%_%", decl.name, decl.line_start_number);
+            link_item.id = tprint("struct_%_%", decl.name, decl.declaration_line_start_number);
             link_item.text = decl.name;
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
@@ -773,7 +765,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         for decl: enums {
             link_item: Nav_Item;
             link_item.kind = .LINK;
-            link_item.id = tprint("enum_%_%", decl.name, decl.line_start_number);
+            link_item.id = tprint("enum_%_%", decl.name, decl.declaration_line_start_number);
             link_item.text = decl.name;
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
@@ -795,7 +787,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         for decl: unions {
             link_item: Nav_Item;
             link_item.kind = .LINK;
-            link_item.id = tprint("union_%_%", decl.name, decl.line_start_number);
+            link_item.id = tprint("union_%_%", decl.name, decl.declaration_line_start_number);
             link_item.text = decl.name;
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
@@ -817,7 +809,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         for decl: type_aliases {
             link_item: Nav_Item;
             link_item.kind = .LINK;
-            link_item.id = tprint("type_alias_%_%", decl.name, decl.line_start_number);
+            link_item.id = tprint("type_alias_%_%", decl.name, decl.declaration_line_start_number);
             link_item.text = decl.name;
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
@@ -839,7 +831,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         for decl: constants {
             link_item: Nav_Item;
             link_item.kind = .LINK;
-            link_item.id = tprint("constant_%_%", decl.name, decl.line_start_number);
+            link_item.id = tprint("constant_%_%", decl.name, decl.declaration_line_start_number);
             link_item.text = decl.name;
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
@@ -861,7 +853,7 @@ generate_declarations_html :: (declarations: [] Declaration_Info, lines: *[..] s
         for decl: variables {
             link_item: Nav_Item;
             link_item.kind = .LINK;
-            link_item.id = tprint("variable_%_%", decl.name, decl.line_start_number);
+            link_item.id = tprint("variable_%_%", decl.name, decl.declaration_line_start_number);
             link_item.text = decl.name;
             link_item.icon_path = get_icon_path(decl.declaration_kind);
             array_add(*nav_links, link_item);
@@ -1309,8 +1301,6 @@ process_finish :: (options: Jaidoc_Options) {
         for *decl: file_info.declarations {
             free(decl.name);
             free(decl.file_path);
-            free(decl.type_string);
-            free(decl.comment);
             free(decl.source_code);
             free(decl.return_type);
             free(decl.initial_value);
@@ -1328,8 +1318,6 @@ process_finish :: (options: Jaidoc_Options) {
             for *decl: file_info.declarations {
                 free(decl.name);
                 free(decl.file_path);
-                free(decl.type_string);
-                free(decl.comment);
                 free(decl.source_code);
                 free(decl.return_type);
                 free(decl.initial_value);
