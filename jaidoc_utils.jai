@@ -46,6 +46,23 @@ path_strip_extension :: (path: string) -> string {
     return path;
 }
 
+path_strip_filename :: (path: string) -> string {
+    last_slash := -1;
+    for i: 0..path.count-1 {
+        if path[i] == #char "/" || path[i] == #char "\\" {
+            last_slash = i;
+        }
+    }
+
+    if last_slash == -1 {
+        return ".";
+    }
+
+    result := path;
+    result.count = last_slash;
+    return result;
+}
+
 debug_print :: (options: JaidocTypes.Jaidoc_Options, fmt: string, args: ..Any, indent_spaces := 0) {
     if options.log_level == .VERBOSE {
         temp_string := tprint(fmt, ..args);

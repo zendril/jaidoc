@@ -292,7 +292,8 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     }
 
     // Copy assets directory
-    assets_source_path := "assets";
+    jaidoc_module_dir := JaidocUtils.path_strip_filename(#filepath);
+    assets_source_path := sprint("%/assets", jaidoc_module_dir);
     assets_dest_path := sprint("%/assets", options.output_directory);
     File_Utilities.copy_directory(assets_source_path, assets_dest_path);
     JaidocUtils.debug_print(options, "Attempted to copy assets from % to %\n", assets_source_path, assets_dest_path);
