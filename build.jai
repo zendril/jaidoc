@@ -2,7 +2,7 @@
 #import "Compiler";
 #import "File";
 #import "File_Utilities";
-JaidocProcessor :: #import, file "jaidoc_processor.jai"; // Import the library
+JaidocProcessor :: #import, file "src/jaidoc/jaidoc_processor.jai"; // Import the library
 
 Command :: enum_flags u8 {
     CLEAN;

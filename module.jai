@@ -1,1 +1,1 @@
-#load "jaidoc_processor.jai";
+#load "src/jaidoc/jaidoc_processor.jai";
