@@ -121,24 +121,47 @@ process_declaration :: (decl_info: *JaidocTypes.Declaration_Info, options: Jaido
         if expr.kind == {
             case .PROCEDURE_HEADER;
                 proc_header := cast(*Code_Procedure_Header) expr;
+
+                // If the procedure has return values, the end of the signature is the end of the last return type.
+                if proc_header.returns.count > 0 {
+                    last_return := proc_header.returns[proc_header.returns.count - 1];
+                    decl_info.declaration_line_end_number = last_return.location.l1;
+                    decl_info.declaration_column_end_number = last_return.location.c1;
+                } else {
+                    // If there are no return values, the end of the signature is the end of the arguments block.
+                    // This handles `()`, `(a: int)`, etc., correctly.
+                    if proc_header.arguments.count > 0 {
+                        last_arg := proc_header.arguments[proc_header.arguments.count - 1];
+                        decl_info.declaration_line_end_number = last_arg.location.l1;
+                        decl_info.declaration_column_end_number = last_arg.location.c1;
+                    } else {
+                        // Fallback for procedures with no arguments and no return values, like `main :: ()`
+                        // We can use the end of the expression, but we need to find the closing ')'
+                        // For now, using the expression location is a safe fallback.
+                        decl_info.declaration_line_end_number = expr.location.l1;
+                        decl_info.declaration_column_end_number = expr.location.c1;
+                    }
+                }
+
                 if proc_header.body_or_null {
                     body := proc_header.body_or_null;
                     JaidocUtils.debug_print(options, "Procedure % body kind: %\n", decl_info.name, body.kind, indent_spaces = 4);
                     JaidocUtils.debug_print(options, "Procedure % body location: l0=%, c0=%, l1=%, c1=%\n", decl_info.name, body.location.l0, body.location.c0, body.location.l1, body.location.c1, indent_spaces = 4);
                     
-                    // Check if the body is a PROCEDURE_BODY (which should have a block)
                     if body.kind == .PROCEDURE_BODY {
                         proc_body := cast(*Code_Procedure_Body) body;
                         if proc_body.block {
                             block := proc_body.block;
-                            // Extend end location to include the block
                             decl_info.procedure_line_end_number = block.location.l1;
                             decl_info.procedure_column_end_number = block.location.c1;
                         }
                     }
                 }
+                
+                // The 'source_code' should contain the full procedure, including the body.
                 decl_info.source_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
-                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.procedure_line_start_number, decl_info.procedure_line_end_number, decl_info.procedure_column_start_number, decl_info.procedure_column_end_number));
+                // The 'declaration_code' should only contain the signature, so we use the declaration's end coordinates.
+                decl_info.declaration_code = copy_string(extract_source_code(decl_info.file_path, decl_info.declaration_line_start_number, decl_info.declaration_line_end_number, decl_info.declaration_column_start_number, decl_info.declaration_column_end_number));
             case .PROCEDURE_BODY;
                 proc_body := cast(*Code_Procedure_Body) expr;
                 // For procedure bodies, use the body's location directly
