@@ -304,6 +304,7 @@ a:hover {
 .search-result-item:hover,
 .search-result-item.focused {
     background-color: #3A3A3A;
+    text-decoration: none;
 }
 
 .search-result-item:active {
