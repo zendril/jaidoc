@@ -18,11 +18,11 @@ generate_html_page :: (title: string, body_html: string, nav_links: [] JaidocTyp
     String.append(*builder, "    <meta charset=\"UTF-8\">\n");
     String.append(*builder, "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
     String.append(*builder, tprint("    <title>%</title>\n", title));
-    String.append(*builder, "    <link rel=\"stylesheet\" href=\"css/main.css\">\n");
-    // Include Fuse.js from CDN for client-side full-text search
-    String.append(*builder, "    <script src=\"https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js\"></script>\n");
-    // Custom search logic shared by all pages (written to js/search.js during generation)
-    String.append(*builder, "    <script src=\"js/search.js\"></script>\n");
+    String.append(*builder, "    <link rel=\"stylesheet\" href=\"assets/css/main.css\">\n");
+    // Include Fuse.js from local assets for client-side full-text search
+    String.append(*builder, "    <script src=\"assets/js/fuse.min.js\"></script>\n");
+    // Custom search logic shared by all pages (written to assets/js/search.js during generation)
+    String.append(*builder, "    <script src=\"assets/js/search.js\"></script>\n");
     // Inline helpers (toggle source, etc.)
     String.append(*builder, "    <script>\n");
     String.append(*builder, "        function toggleSource(id) {\n");
@@ -280,17 +280,17 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
         JaidocUtils.debug_print(options, "Created output directory: %\n", options.output_directory);
     }
 
-    // Create CSS directory and file
-    css_dir := sprint("%/css", options.output_directory);
-    if !File_Utilities.file_exists(css_dir) {
-        make_directory_if_it_does_not_exist(css_dir, true);
-        JaidocUtils.debug_print(options, "Created CSS directory: %\n", css_dir);
-    }
-    
-    // Generate CSS content
+    // Generate CSS content and write to assets/css directory
     css_content := JaidocCSS.GET_CSS_CONTENT();
     
-    css_file_path := sprint("%/main.css", css_dir);
+    // Ensure assets/css directory exists
+    assets_css_dir := sprint("%/assets/css", options.output_directory);
+    if !File_Utilities.file_exists(assets_css_dir) {
+        make_directory_if_it_does_not_exist(assets_css_dir, true);
+        JaidocUtils.debug_print(options, "Created assets/css directory: %\n", assets_css_dir);
+    }
+    
+    css_file_path := sprint("%/assets/css/main.css", options.output_directory);
     css_success := write_entire_file(css_file_path, css_content);
     if css_success {
         JaidocUtils.debug_print(options, "Generated CSS file at %\n", css_file_path);
@@ -447,11 +447,6 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     // -----------------------------
     // Write search.js file (shared logic)
     // -----------------------------
-    js_dir := sprint("%/js", options.output_directory);
-    if !File_Utilities.file_exists(js_dir) {
-        make_directory_if_it_does_not_exist(js_dir, true);
-    }
-
     // Build search.js content
     js_builder: String_Builder;
     String.append(*js_builder, "document.addEventListener('DOMContentLoaded', function() {\n");
@@ -470,7 +465,7 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     String.append(*js_builder, "  });\n");
     String.append(*js_builder, "});\n");
     search_js_content := String.builder_to_string(*js_builder);
-    search_js_path := sprint("%/js/search.js", options.output_directory);
+    search_js_path := sprint("%/assets/js/search.js", options.output_directory);
     write_entire_file(search_js_path, search_js_content);
 }
 
