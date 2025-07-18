@@ -267,5 +267,100 @@ a:hover {
     margin-right: 8px;
     vertical-align: middle;
 }
+
+/* Search Results Styles */
+#search-results {
+    margin-top: 10px;
+    max-height: 300px; /* Fixed height for max 5 results (60px each) */
+    overflow-y: auto;
+    border-radius: 5px;
+    background-color: #2C2C2C;
+    border: 1px solid #333;
+    display: none; /* Hidden by default */
+}
+
+#search-results.show {
+    display: block;
+}
+
+.search-results-container {
+    padding: 0;
+}
+
+.search-result-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item.focused {
+    background-color: #3A3A3A;
+}
+
+.search-result-item:active {
+    background-color: #404040;
+}
+
+.result-title {
+    font-size: 0.95em;
+    font-weight: 500;
+    color: #E0E0E0;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.result-type {
+    font-size: 0.8em;
+    color: #58A6FF;
+    text-transform: capitalize;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.result-context {
+    font-size: 0.8em;
+    color: #AAA;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+.no-results {
+    padding: 15px;
+    text-align: center;
+    color: #888;
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+/* Scrollbar styling for search results */
+#search-results::-webkit-scrollbar {
+    width: 6px;
+}
+
+#search-results::-webkit-scrollbar-track {
+    background: #1A1A1A;
+    border-radius: 3px;
+}
+
+#search-results::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 3px;
+}
+
+#search-results::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
 END;
 }

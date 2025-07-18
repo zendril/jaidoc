@@ -1,0 +1,16 @@
+{
+  "name": "jaidoc-search-indexer",
+  "version": "1.0.0",
+  "description": "Enhanced search index builder for Jaidoc documentation",
+  "main": "build-search-index.js",
+  "scripts": {
+    "build-index": "node build-search-index.js"
+  },
+  "dependencies": {
+    "jsdom": "^23.0.0"
+  },
+  "devDependencies": {},
+  "keywords": ["jaidoc", "search", "documentation"],
+  "author": "",
+  "license": "MIT"
+}

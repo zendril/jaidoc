@@ -9,6 +9,127 @@ JaidocUtils :: #import, file "jaidoc_utils.jai";
 JaidocModel :: #import, file "jaidoc_model.jai";
 JaidocCSS :: #import, file "jaidoc_css.jai";
 
+// Helper function to build enhanced search index entries
+build_enhanced_search_entry :: (url: string, title: string, page_type: string, content: string, declarations: [] JaidocTypes.Declaration_Info) -> string {
+    builder: String_Builder;
+    
+    String.append(*builder, "{");
+    String.append(*builder, tprint("\"url\":\"%\",", url));
+    String.append(*builder, tprint("\"title\":\"%\",", title));
+    String.append(*builder, tprint("\"type\":\"%\",", page_type));
+    String.append(*builder, tprint("\"content\":\"%\",", content));
+    String.append(*builder, "\"items\":[");
+    
+    if declarations.count > 0 {
+        items: [..]string;
+        for decl: declarations {
+            item_builder: String_Builder;
+            String.append(*item_builder, "{");
+            
+            // Generate unique ID for the declaration
+            decl_id := tprint("%_%_%", get_declaration_type_string(decl.declaration_kind), decl.name, decl.declaration_line_start_number);
+            String.append(*item_builder, tprint("\"id\":\"%\",", decl_id));
+            String.append(*item_builder, tprint("\"name\":\"%\",", decl.name));
+            String.append(*item_builder, tprint("\"type\":\"%\",", get_declaration_type_string(decl.declaration_kind)));
+            
+            // Create context snippet from declaration code (truncate if too long)
+            context_text := decl.declaration_code;
+            if context_text.count > 100 {
+                context_text = tprint("%..", String.slice(context_text, 0, 97));
+            }
+            String.append(*item_builder, tprint("\"context\":\"%\",", escape_json_string(context_text)));
+            String.append(*item_builder, tprint("\"anchor\":\"#%\"", decl_id));
+            String.append(*item_builder, "}");
+            
+            array_add(*items, String.builder_to_string(*item_builder));
+        }
+        String.append(*builder, String.join(..items, ","));
+    }
+    
+    String.append(*builder, "]}");
+    return String.builder_to_string(*builder);
+}
+
+// Helper function to get declaration type as string
+get_declaration_type_string :: (kind: JaidocTypes.Declaration_Kind) -> string {
+    if kind == {
+        case .PROCEDURE; return "procedure";
+        case .STRUCT; return "struct";
+        case .ENUM; return "enum";
+        case .UNION; return "union";
+        case .CONSTANT; return "constant";
+        case .VARIABLE; return "variable";
+        case .TYPE_ALIAS; return "type_alias";
+    }
+    return "unknown";
+}
+
+// Helper function to escape JSON strings
+escape_json_string :: (input: string) -> string {
+    builder: String_Builder;
+    for i: 0..input.count-1 {
+        char := input[i];
+        if char == {
+            case #char "\""; String.append(*builder, "\\\"");
+            case #char "\\"; String.append(*builder, "\\\\");
+            case #char "\n"; String.append(*builder, "\\n");
+            case #char "\r"; String.append(*builder, "\\r");
+            case #char "\t"; String.append(*builder, "\\t");
+            case; String.append(*builder, char);
+        }
+    }
+    return String.builder_to_string(*builder);
+}
+
+// Helper function to build content text for search indexing
+build_content_text_for_file :: (file_info: JaidocTypes.File_Info) -> string {
+    builder: String_Builder;
+    
+    // Add file name and path
+    file_name := JaidocUtils.get_filename_from_path(file_info.path);
+    String.append(*builder, file_name);
+    String.append(*builder, " ");
+    
+    // Add section headers
+    String.append(*builder, "Declarations ");
+    
+    // Add declaration names and types
+    for decl: file_info.declarations {
+        String.append(*builder, decl.name);
+        String.append(*builder, " ");
+        String.append(*builder, get_declaration_type_string(decl.declaration_kind));
+        String.append(*builder, " ");
+    }
+    
+    return String.builder_to_string(*builder);
+}
+
+// Helper function to build content text for modules
+build_content_text_for_module :: (module_info: JaidocTypes.Module_Info) -> string {
+    builder: String_Builder;
+    
+    // Add module name and import path
+    String.append(*builder, module_info.name);
+    String.append(*builder, " ");
+    String.append(*builder, module_info.import_path);
+    String.append(*builder, " ");
+    
+    // Add section headers
+    String.append(*builder, "Module Procedures Structs Enums Unions Constants Variables ");
+    
+    // Add all declaration names from all files in the module
+    for file_info: module_info.files {
+        for decl: file_info.declarations {
+            String.append(*builder, decl.name);
+            String.append(*builder, " ");
+            String.append(*builder, get_declaration_type_string(decl.declaration_kind));
+            String.append(*builder, " ");
+        }
+    }
+    
+    return String.builder_to_string(*builder);
+}
+
 generate_html_page :: (title: string, body_html: string, nav_links: [] JaidocTypes.Nav_Item, module_links: [] string, main_files: [] JaidocTypes.File_Info) -> string {
     builder: String_Builder;
     
@@ -310,7 +431,9 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     // ---------------------------
     search_items: [..]string;
     // Add index page entry early
-    array_add(*search_items, "{\"url\":\"index.html\",\"title\":\"Jaidoc Documentation\"}");
+    empty_declarations: [..]JaidocTypes.Declaration_Info;
+    index_entry := build_enhanced_search_entry("index.html", "Jaidoc Documentation", "page", "Jaidoc Documentation Main Program Files Modules", empty_declarations);
+    array_add(*search_items, index_entry);
 
     // --------------------------------------------------
     // Generate and write index.html file
@@ -380,8 +503,10 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
         // Write to file
         file_output_path := sprint("%/file_main.html", options.output_directory);
         file_success := write_entire_file(file_output_path, file_html);
-        // Add to search index
-        array_add(*search_items, sprint("{\"url\":\"file_main.html\",\"title\":\"%\"}", file_title));
+        // Add to search index with enhanced structure
+        content_text := build_content_text_for_file(file_info);
+        file_entry := build_enhanced_search_entry("file_main.html", file_title, "file", content_text, file_info.declarations);
+        array_add(*search_items, file_entry);
         if file_success {
             JaidocUtils.debug_print(options, "Generated file_main.html at %\n", file_output_path);
         } else {
@@ -421,8 +546,17 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
         module_body := String.join(..module_body_lines, "\n");
         module_title := sprint("Module: %", module_info.name);
         module_html := generate_html_page(module_title, module_body, nav_links, module_links, JaidocModel.doc_model.main_files);
-        // Add to search index
-        array_add(*search_items, sprint("{\"url\":\"module_%.html\",\"title\":\"%\"}", module_info.name, module_title));
+        // Add to search index with enhanced structure
+        content_text := build_content_text_for_module(module_info);
+        // Collect all declarations from all files in the module
+        all_declarations: [..]JaidocTypes.Declaration_Info;
+        for file_info: module_info.files {
+            for decl: file_info.declarations {
+                array_add(*all_declarations, decl);
+            }
+        }
+        module_entry := build_enhanced_search_entry(sprint("module_%.html", module_info.name), module_title, "module", content_text, all_declarations);
+        array_add(*search_items, module_entry);
         
         // Write to file
         module_output_path := sprint("%/module_%.html", options.output_directory, module_info.name);
@@ -447,21 +581,125 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     // -----------------------------
     // Write search.js file (shared logic)
     // -----------------------------
-    // Build search.js content
+    // Build enhanced search.js content with backward compatibility
     js_builder: String_Builder;
     String.append(*js_builder, "document.addEventListener('DOMContentLoaded', function() {\n");
     String.append(*js_builder, "  const input = document.getElementById('search-input');\n");
     String.append(*js_builder, "  if (!input) return;\n");
     String.append(*js_builder, "  fetch('search-index.json').then(r => r.json()).then(data => {\n");
-    String.append(*js_builder, "    const fuse = new Fuse(data, { keys: ['title'], includeScore: true, threshold: 0.4 });\n");
+    String.append(*js_builder, "    // Enhanced Fuse.js configuration for multi-field search\n");
+    String.append(*js_builder, "    const fuseOptions = {\n");
+    String.append(*js_builder, "      keys: [\n");
+    String.append(*js_builder, "        { name: 'title', weight: 0.4 },\n");
+    String.append(*js_builder, "        { name: 'content', weight: 0.2 },\n");
+    String.append(*js_builder, "        { name: 'items.name', weight: 0.3 },\n");
+    String.append(*js_builder, "        { name: 'items.context', weight: 0.1 }\n");
+    String.append(*js_builder, "      ],\n");
+    String.append(*js_builder, "      includeScore: true,\n");
+    String.append(*js_builder, "      includeMatches: true,\n");
+    String.append(*js_builder, "      threshold: 0.4,\n");
+    String.append(*js_builder, "      minMatchCharLength: 2\n");
+    String.append(*js_builder, "    };\n");
+    String.append(*js_builder, "    const fuse = new Fuse(data, fuseOptions);\n");
+    String.append(*js_builder, "    \n");
     String.append(*js_builder, "    input.addEventListener('input', function() {\n");
     String.append(*js_builder, "      const query = this.value.trim();\n");
     String.append(*js_builder, "      const resultsDiv = document.getElementById('search-results');\n");
     String.append(*js_builder, "      if (!resultsDiv) return;\n");
-    String.append(*js_builder, "      if (!query) { resultsDiv.innerHTML = ''; return; }\n");
+    String.append(*js_builder, "      if (!query) { resultsDiv.innerHTML = ''; resultsDiv.classList.remove('show'); return; }\n");
+    String.append(*js_builder, "      \n");
     String.append(*js_builder, "      const results = fuse.search(query, { limit: 20 });\n");
-    String.append(*js_builder, "      resultsDiv.innerHTML = results.map(function(r){ return '<a href=\"' + r.item.url + '\">' + r.item.title + '</a>'; }).join('<br>');\n");
+    String.append(*js_builder, "      \n");
+    String.append(*js_builder, "      // Process results to handle both enhanced and legacy formats\n");
+    String.append(*js_builder, "      const processedResults = [];\n");
+    String.append(*js_builder, "      \n");
+    String.append(*js_builder, "      results.forEach(function(result) {\n");
+    String.append(*js_builder, "        const item = result.item;\n");
+    String.append(*js_builder, "        \n");
+    String.append(*js_builder, "        // Check if this is an enhanced format with items\n");
+    String.append(*js_builder, "        if (item.items && item.items.length > 0) {\n");
+    String.append(*js_builder, "          // Check if any matches are in the items array\n");
+    String.append(*js_builder, "          let hasItemMatch = false;\n");
+    String.append(*js_builder, "          if (result.matches) {\n");
+    String.append(*js_builder, "            result.matches.forEach(function(match) {\n");
+    String.append(*js_builder, "              if (match.key && match.key.startsWith('items.')) {\n");
+    String.append(*js_builder, "                hasItemMatch = true;\n");
+    String.append(*js_builder, "              }\n");
+    String.append(*js_builder, "            });\n");
+    String.append(*js_builder, "          }\n");
+    String.append(*js_builder, "          \n");
+    String.append(*js_builder, "          if (hasItemMatch) {\n");
+    String.append(*js_builder, "            // Find the specific item that matched\n");
+    String.append(*js_builder, "            item.items.forEach(function(subItem) {\n");
+    String.append(*js_builder, "              if (subItem.name.toLowerCase().includes(query.toLowerCase()) || \n");
+    String.append(*js_builder, "                  subItem.context.toLowerCase().includes(query.toLowerCase())) {\n");
+    String.append(*js_builder, "                processedResults.push({\n");
+    String.append(*js_builder, "                  url: item.url + subItem.anchor,\n");
+    String.append(*js_builder, "                  title: item.title,\n");
+    String.append(*js_builder, "                  displayTitle: subItem.name,\n");
+    String.append(*js_builder, "                  displayType: subItem.type,\n");
+    String.append(*js_builder, "                  displayContext: subItem.context,\n");
+    String.append(*js_builder, "                  score: result.score\n");
+    String.append(*js_builder, "                });\n");
+    String.append(*js_builder, "              }\n");
+    String.append(*js_builder, "            });\n");
+    String.append(*js_builder, "          } else {\n");
+    String.append(*js_builder, "            // Page-level match\n");
+    String.append(*js_builder, "            processedResults.push({\n");
+    String.append(*js_builder, "              url: item.url,\n");
+    String.append(*js_builder, "              title: item.title,\n");
+    String.append(*js_builder, "              displayTitle: item.title,\n");
+    String.append(*js_builder, "              displayType: item.type || 'page',\n");
+    String.append(*js_builder, "              displayContext: '',\n");
+    String.append(*js_builder, "              score: result.score\n");
+    String.append(*js_builder, "            });\n");
+    String.append(*js_builder, "          }\n");
+    String.append(*js_builder, "        } else {\n");
+    String.append(*js_builder, "          // Legacy format or simple page match\n");
+    String.append(*js_builder, "          processedResults.push({\n");
+    String.append(*js_builder, "            url: item.url,\n");
+    String.append(*js_builder, "            title: item.title,\n");
+    String.append(*js_builder, "            displayTitle: item.title,\n");
+    String.append(*js_builder, "            displayType: 'page',\n");
+    String.append(*js_builder, "            displayContext: '',\n");
+    String.append(*js_builder, "            score: result.score\n");
+    String.append(*js_builder, "          });\n");
+    String.append(*js_builder, "        }\n");
+    String.append(*js_builder, "      });\n");
+    String.append(*js_builder, "      \n");
+    String.append(*js_builder, "      // Sort by score and limit results\n");
+    String.append(*js_builder, "      processedResults.sort(function(a, b) { return a.score - b.score; });\n");
+    String.append(*js_builder, "      const limitedResults = processedResults.slice(0, 20);\n");
+    String.append(*js_builder, "      \n");
+    String.append(*js_builder, "      // Generate structured HTML for results\n");
+    String.append(*js_builder, "      if (limitedResults.length === 0) {\n");
+    String.append(*js_builder, "        resultsDiv.innerHTML = '<div class=\"no-results\">No results found</div>';\n");
+    String.append(*js_builder, "        resultsDiv.classList.add('show');\n");
+    String.append(*js_builder, "      } else {\n");
+    String.append(*js_builder, "        const resultsHtml = limitedResults.slice(0, 5).map(function(r) {\n");
+    String.append(*js_builder, "          const contextText = r.displayContext ? r.displayContext : '';\n");
+    String.append(*js_builder, "          const typeText = r.displayType ? r.displayType : 'page';\n");
+    String.append(*js_builder, "          return '<a href=\"' + r.url + '\" class=\"search-result-item\">' +\n");
+    String.append(*js_builder, "                   '<div class=\"result-title\">' + r.displayTitle + '</div>' +\n");
+    String.append(*js_builder, "                   '<div class=\"result-type\">' + typeText + '</div>' +\n");
+    String.append(*js_builder, "                   (contextText ? '<div class=\"result-context\">' + contextText + '</div>' : '') +\n");
+    String.append(*js_builder, "                 '</a>';\n");
+    String.append(*js_builder, "        }).join('');\n");
+    String.append(*js_builder, "        resultsDiv.innerHTML = resultsHtml;\n");
+    String.append(*js_builder, "        resultsDiv.classList.add('show');\n");
+    String.append(*js_builder, "      }\n");
     String.append(*js_builder, "    });\n");
+    String.append(*js_builder, "    \n");
+    String.append(*js_builder, "    // Add click-outside-to-close functionality\n");
+    String.append(*js_builder, "    document.addEventListener('click', function(event) {\n");
+    String.append(*js_builder, "      const searchBar = document.querySelector('.search-bar');\n");
+    String.append(*js_builder, "      const resultsDiv = document.getElementById('search-results');\n");
+    String.append(*js_builder, "      if (searchBar && resultsDiv && !searchBar.contains(event.target)) {\n");
+    String.append(*js_builder, "        resultsDiv.classList.remove('show');\n");
+    String.append(*js_builder, "      }\n");
+    String.append(*js_builder, "    });\n");
+    String.append(*js_builder, "  }).catch(function(error) {\n");
+    String.append(*js_builder, "    console.error('Failed to load search index:', error);\n");
     String.append(*js_builder, "  });\n");
     String.append(*js_builder, "});\n");
     search_js_content := String.builder_to_string(*js_builder);
