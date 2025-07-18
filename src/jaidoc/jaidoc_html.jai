@@ -19,6 +19,11 @@ generate_html_page :: (title: string, body_html: string, nav_links: [] JaidocTyp
     String.append(*builder, "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
     String.append(*builder, tprint("    <title>%</title>\n", title));
     String.append(*builder, "    <link rel=\"stylesheet\" href=\"css/main.css\">\n");
+    // Include Fuse.js from CDN for client-side full-text search
+    String.append(*builder, "    <script src=\"https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js\"></script>\n");
+    // Custom search logic shared by all pages (written to js/search.js during generation)
+    String.append(*builder, "    <script src=\"js/search.js\"></script>\n");
+    // Inline helpers (toggle source, etc.)
     String.append(*builder, "    <script>\n");
     String.append(*builder, "        function toggleSource(id) {\n");
     String.append(*builder, "            var element = document.getElementById(id);\n");
@@ -32,7 +37,9 @@ generate_html_page :: (title: string, body_html: string, nav_links: [] JaidocTyp
     String.append(*builder, "    <div class=\"left-sidebar\">\n");
     String.append(*builder, "        <h2>Jaidoc</h2>\n");
     String.append(*builder, "        <div class=\"search-bar\">\n");
-    String.append(*builder, "            <input type=\"text\" placeholder=\"Search\">\n");
+    String.append(*builder, "            <input id=\"search-input\" type=\"text\" placeholder=\"Search\">\n");
+    // Container where search.js will inject results
+    String.append(*builder, "            <div id=\"search-results\"></div>\n");
     String.append(*builder, "        </div>\n");
     String.append(*builder, "        <h3>MAIN FILES</h3>\n");
     String.append(*builder, "        <ul>\n");
@@ -298,6 +305,14 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     File_Utilities.copy_directory(assets_source_path, assets_dest_path);
     JaidocUtils.debug_print(options, "Attempted to copy assets from % to %\n", assets_source_path, assets_dest_path);
     
+    // ---------------------------
+    // Build search index entries
+    // ---------------------------
+    search_items: [..]string;
+    // Add index page entry early
+    array_add(*search_items, "{\"url\":\"index.html\",\"title\":\"Jaidoc Documentation\"}");
+
+    // --------------------------------------------------
     // Generate and write index.html file
     index_file_path := sprint("%/index.html", options.output_directory);
     
@@ -365,6 +380,8 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
         // Write to file
         file_output_path := sprint("%/file_main.html", options.output_directory);
         file_success := write_entire_file(file_output_path, file_html);
+        // Add to search index
+        array_add(*search_items, sprint("{\"url\":\"file_main.html\",\"title\":\"%\"}", file_title));
         if file_success {
             JaidocUtils.debug_print(options, "Generated file_main.html at %\n", file_output_path);
         } else {
@@ -404,6 +421,8 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
         module_body := String.join(..module_body_lines, "\n");
         module_title := sprint("Module: %", module_info.name);
         module_html := generate_html_page(module_title, module_body, nav_links, module_links, JaidocModel.doc_model.main_files);
+        // Add to search index
+        array_add(*search_items, sprint("{\"url\":\"module_%.html\",\"title\":\"%\"}", module_info.name, module_title));
         
         // Write to file
         module_output_path := sprint("%/module_%.html", options.output_directory, module_info.name);
@@ -416,4 +435,42 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
             JaidocUtils.debug_print(options, "  Path: %\n", module_output_path);
         }
     }
+
+    // -----------------------------
+    // Write search-index.json file
+    // -----------------------------
+    search_json := String.join(..search_items, ",\n");
+    search_json = sprint("[\n%\n]", search_json);
+    search_index_path := sprint("%/search-index.json", options.output_directory);
+    write_entire_file(search_index_path, search_json);
+
+    // -----------------------------
+    // Write search.js file (shared logic)
+    // -----------------------------
+    js_dir := sprint("%/js", options.output_directory);
+    if !File_Utilities.file_exists(js_dir) {
+        make_directory_if_it_does_not_exist(js_dir, true);
+    }
+
+    // Build search.js content
+    js_builder: String_Builder;
+    String.append(*js_builder, "document.addEventListener('DOMContentLoaded', function() {\n");
+    String.append(*js_builder, "  const input = document.getElementById('search-input');\n");
+    String.append(*js_builder, "  if (!input) return;\n");
+    String.append(*js_builder, "  fetch('search-index.json').then(r => r.json()).then(data => {\n");
+    String.append(*js_builder, "    const fuse = new Fuse(data, { keys: ['title'], includeScore: true, threshold: 0.4 });\n");
+    String.append(*js_builder, "    input.addEventListener('input', function() {\n");
+    String.append(*js_builder, "      const query = this.value.trim();\n");
+    String.append(*js_builder, "      const resultsDiv = document.getElementById('search-results');\n");
+    String.append(*js_builder, "      if (!resultsDiv) return;\n");
+    String.append(*js_builder, "      if (!query) { resultsDiv.innerHTML = ''; return; }\n");
+    String.append(*js_builder, "      const results = fuse.search(query, { limit: 20 });\n");
+    String.append(*js_builder, "      resultsDiv.innerHTML = results.map(function(r){ return '<a href=\"' + r.item.url + '\">' + r.item.title + '</a>'; }).join('<br>');\n");
+    String.append(*js_builder, "    });\n");
+    String.append(*js_builder, "  });\n");
+    String.append(*js_builder, "});\n");
+    search_js_content := String.builder_to_string(*js_builder);
+    search_js_path := sprint("%/js/search.js", options.output_directory);
+    write_entire_file(search_js_path, search_js_content);
 }
+
