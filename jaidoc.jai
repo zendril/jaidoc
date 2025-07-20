@@ -1,5 +1,5 @@
 Plugin :: Metaprogram_Plugin;
-//JaidocProcessor :: #import, file "src/jaidoc/jaidoc_processor.jai"; // Import the library
+JaidocProcessor :: #import, file "src/jaidoc/jaidoc_processor.jai"; // Import the library
 //JaidocUtils :: #import, file "src/jaidoc/jaidoc_utils.jai"; // Import the library
 #import "Basic";
 
