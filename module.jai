@@ -1,2 +1,2 @@
 #load "src/jaidoc/jaidoc_processor.jai";
-#load "jaidoc_plugin/jaidoc.jai";
+#load "jaidoc.jai";
