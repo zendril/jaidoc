@@ -702,7 +702,7 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     String.append(*js_builder, "          ],\n");
     String.append(*js_builder, "          includeScore: true,\n");
     String.append(*js_builder, "          includeMatches: true,\n");
-    String.append(*js_builder, "          threshold: 0.6,\n");
+    String.append(*js_builder, "          threshold: 0.3,\n");
     String.append(*js_builder, "          minMatchCharLength: 1\n");
     String.append(*js_builder, "        };\n");
     String.append(*js_builder, "      }\n");
