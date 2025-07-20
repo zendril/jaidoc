@@ -109,6 +109,36 @@ get_icon_path :: (kind: JaidocTypes.Declaration_Kind) -> string {
     return ""; // Default empty string
 }
 
+shorten_file_path :: (absolute_path: string, project_root: string) -> string {
+    if project_root.count == 0 {
+        // If no project root is provided, return just the filename
+        return get_filename_from_path(absolute_path);
+    }
+    
+    // Normalize path separators to forward slashes for consistent comparison
+    normalized_path := String.replace(absolute_path, "\\", "/");
+    normalized_root := String.replace(project_root, "\\", "/");
+    
+    // Ensure project root ends with a separator for proper prefix matching
+    root_with_separator := normalized_root;
+    if !String.ends_with(root_with_separator, "/") {
+        root_with_separator = tprint("%/", root_with_separator);
+    }
+    
+    // Check if the path starts with the project root
+    if String.starts_with(normalized_path, root_with_separator) {
+        // Remove the project root prefix
+        relative_path := String.slice(normalized_path, root_with_separator.count, normalized_path.count);
+        return relative_path;
+    } else if normalized_path == normalized_root {
+        // Handle case where the file is exactly at the project root
+        return get_filename_from_path(absolute_path);
+    } else {
+        // Project root not found in path, fall back to filename only
+        return get_filename_from_path(absolute_path);
+    }
+}
+
 get_declaration_kind :: (expr: *Code_Node) -> JaidocTypes.Declaration_Kind {
     if !expr return .VARIABLE;
     

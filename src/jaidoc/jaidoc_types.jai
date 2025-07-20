@@ -12,6 +12,7 @@ Jaidoc_Options :: struct {
     output_directory: string = "docs";
     project_root: string = "";  // Root directory of the project being documented
     log_level: LogLevel = .DEFAULT;
+    app_title: string = "Jaidoc";  // Custom application title for documentation
 }
 
 // Data model for documentation

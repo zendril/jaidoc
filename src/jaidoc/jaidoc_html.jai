@@ -449,7 +449,8 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     } else {
         for file_info: JaidocModel.doc_model.main_files {
             file_html_name := "file_main.html";
-            link_line := sprint("        <p><a href=\"%\">%</a></p>", file_html_name, file_info.path);
+            shortened_path := JaidocUtils.shorten_file_path(file_info.path, options.project_root);
+            link_line := sprint("        <p><a href=\"%\">%</a></p>", file_html_name, shortened_path);
             array_add(*index_body_lines, link_line);
         }
     }
