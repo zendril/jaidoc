@@ -363,5 +363,36 @@ a:hover {
 #search-results::-webkit-scrollbar-thumb:hover {
     background: #666;
 }
+
+/* Search Error Styles */
+.search-error {
+    padding: 15px;
+    text-align: center;
+    font-size: 0.9em;
+    border-radius: 3px;
+    margin: 5px;
+}
+
+.search-error-temporary {
+    background-color: #2D1B00;
+    color: #FFB366;
+    border: 1px solid #4A2C00;
+}
+
+.search-error-permanent {
+    background-color: #2D0A0A;
+    color: #FF6B6B;
+    border: 1px solid #4A1515;
+}
+
+.search-error-temporary::before {
+    content: "⚠ ";
+    font-weight: bold;
+}
+
+.search-error-permanent::before {
+    content: "✗ ";
+    font-weight: bold;
+}
 END;
 }

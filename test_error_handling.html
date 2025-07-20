@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Error Handling Test</title>
+    <link rel="stylesheet" href="target/docs/assets/css/main.css">
+    <script src="target/docs/assets/js/fuse.min.js"></script>
+    <script src="target/docs/assets/js/search.js"></script>
+</head>
+<body>
+    <div class="left-sidebar">
+        <h2>Error Handling Test</h2>
+        <div class="search-bar">
+            <input id="search-input" type="text" placeholder="Search">
+            <div id="search-results"></div>
+        </div>
+    </div>
+    <div class="main-content">
+        <h1>Search Error Handling Test</h1>
+        <p>This page tests the error handling functionality of the enhanced search system.</p>
+        <h2>Test Scenarios:</h2>
+        <ol>
+            <li>Normal search (should work with generated index)</li>
+            <li>Search with missing index (rename search-index.json to test fallback)</li>
+            <li>Search with corrupted index (modify search-index.json to test error handling)</li>
+        </ol>
+        <p>Open browser developer tools to see error messages and retry attempts.</p>
+    </div>
+</body>
+</html>
+</script>
