@@ -81,6 +81,23 @@ escape_json_string :: (input: string) -> string {
     return String.builder_to_string(*builder);
 }
 
+// Helper function to escape HTML special characters
+escape_html_string :: (input: string) -> string {
+    builder: String_Builder;
+    for i: 0..input.count-1 {
+        char := input[i];
+        if char == {
+            case #char "<"; String.append(*builder, "&lt;");
+            case #char ">"; String.append(*builder, "&gt;");
+            case #char "&"; String.append(*builder, "&amp;");
+            case #char "\""; String.append(*builder, "&quot;");
+            case #char "'"; String.append(*builder, "&#39;");
+            case; String.append(*builder, char);
+        }
+    }
+    return String.builder_to_string(*builder);
+}
+
 // Helper function to build content text for search indexing
 build_content_text_for_file :: (file_info: JaidocTypes.File_Info) -> string {
     builder: String_Builder;
@@ -130,7 +147,7 @@ build_content_text_for_module :: (module_info: JaidocTypes.Module_Info) -> strin
     return String.builder_to_string(*builder);
 }
 
-generate_html_page :: (title: string, body_html: string, nav_links: [] JaidocTypes.Nav_Item, module_links: [] string, main_files: [] JaidocTypes.File_Info) -> string {
+generate_html_page :: (title: string, body_html: string, nav_links: [] JaidocTypes.Nav_Item, module_links: [] string, main_files: [] JaidocTypes.File_Info, app_title: string = "Jaidoc") -> string {
     builder: String_Builder;
     
     String.append(*builder, "<!DOCTYPE html>\n");
@@ -156,7 +173,8 @@ generate_html_page :: (title: string, body_html: string, nav_links: [] JaidocTyp
     
     // Left Sidebar
     String.append(*builder, "    <div class=\"left-sidebar\">\n");
-    String.append(*builder, "        <h2>Jaidoc</h2>\n");
+    escaped_title := escape_html_string(app_title);
+    String.append(*builder, tprint("        <h2><a href=\"index.html\" class=\"app-title-link\">%</a></h2>\n", escaped_title));
     String.append(*builder, "        <div class=\"search-bar\">\n");
     String.append(*builder, "            <input id=\"search-input\" type=\"text\" placeholder=\"Search\">\n");
     // Container where search.js will inject results
@@ -471,7 +489,7 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     // Create index page
     index_body := String.join(..index_body_lines, "\n");
     index_nav_links: [..]JaidocTypes.Nav_Item; // No navigation for index page
-    index_html := generate_html_page("Jaidoc Documentation", index_body, index_nav_links, module_links, JaidocModel.doc_model.main_files);
+    index_html := generate_html_page("Jaidoc Documentation", index_body, index_nav_links, module_links, JaidocModel.doc_model.main_files, options.app_title);
     
     index_success := write_entire_file(index_file_path, index_html);
     if index_success {
@@ -499,7 +517,7 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
         // Create HTML page
         file_body := String.join(..file_body_lines, "\n");
         file_title := sprint("File: %", file_info.path);
-        file_html := generate_html_page(file_title, file_body, nav_links, module_links, JaidocModel.doc_model.main_files);
+        file_html := generate_html_page(file_title, file_body, nav_links, module_links, JaidocModel.doc_model.main_files, options.app_title);
         
         // Write to file
         file_output_path := sprint("%/file_main.html", options.output_directory);
@@ -546,7 +564,7 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
         // Create HTML page
         module_body := String.join(..module_body_lines, "\n");
         module_title := sprint("Module: %", module_info.name);
-        module_html := generate_html_page(module_title, module_body, nav_links, module_links, JaidocModel.doc_model.main_files);
+        module_html := generate_html_page(module_title, module_body, nav_links, module_links, JaidocModel.doc_model.main_files, options.app_title);
         // Add to search index with enhanced structure
         content_text := build_content_text_for_module(module_info);
         // Collect all declarations from all files in the module

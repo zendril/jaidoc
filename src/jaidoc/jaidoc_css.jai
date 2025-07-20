@@ -30,6 +30,18 @@ body {
     margin-bottom: 20px;
 }
 
+.app-title-link {
+    color: #E0E0E0;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.app-title-link:hover {
+    color: #58A6FF;
+    text-decoration: none;
+}
+
 .search-bar input {
     width: 100%;
     padding: 8px;
