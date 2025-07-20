@@ -117,46 +117,7 @@ The application title will be configurable through:
 - Handle cases where search input element is not found
 - Maintain backward compatibility with existing search behavior
 
-## Testing Strategy
 
-### Unit Testing Approach
-1. **Path Shortening Tests**
-   - Test with various absolute path formats
-   - Test with different project root configurations
-   - Test edge cases (empty paths, invalid paths)
-
-2. **Title Configuration Tests**
-   - Test default title behavior
-   - Test custom title with special characters
-   - Test empty/invalid custom titles
-
-3. **HTML Generation Tests**
-   - Verify clickable title HTML structure
-   - Verify shortened paths in index page
-   - Verify proper HTML escaping
-
-### Integration Testing Approach
-1. **End-to-End Navigation Tests**
-   - Test clicking title navigates to index page
-   - Test navigation from various page types
-   - Test with custom titles
-
-2. **Search Functionality Tests**
-   - Verify search works without auto-focus
-   - Test text selection is not interrupted
-   - Test manual focus on search input
-
-3. **Cross-Platform Tests**
-   - Test path shortening on Windows/Unix systems
-   - Test with different path separator formats
-   - Test command line argument parsing
-
-### Manual Testing Scenarios
-1. Generate documentation with default settings
-2. Generate documentation with custom title
-3. Test navigation by clicking title from different pages
-4. Test text selection and copying without search interference
-5. Verify shortened paths display correctly on index page
 
 ## Implementation Phases
 
