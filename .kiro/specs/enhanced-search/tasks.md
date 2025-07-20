@@ -88,9 +88,3 @@
   - Add retry logic for failed index loading
   - _Requirements: 2.4, 4.5_
 
-- [ ] 8. Create comprehensive test suite
-  - Write unit tests for search index processing and result formatting
-  - Create integration tests for keyboard navigation and mouse interaction
-  - Add end-to-end tests for complete search workflows
-  - Test search functionality across different content types and edge cases
-  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 5.1, 5.2, 5.3, 5.4, 5.5_
