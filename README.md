@@ -122,3 +122,26 @@ To prevent build artifacts from being committed to your repository, add the `tar
 # .gitignore
 target/
 ```
+
+## Local Build/Usage
+
+If you are working on Jaidoc, the following commands will be helpful
+
+### Compiler Plugin
+
+We need the extra `--- import_dir ./jaidoc_plugin` here. End users who pull this in as a module will not, because they will have it in their module path, but for our testing we do.
+
+*   **Default (Summary Output):**
+    ```bash
+    jai your_main_file.jai +jaidoc --- import_dir ./jaidoc_plugin
+    ```
+
+*   **Quiet Mode (No Summary):**
+    ```bash
+    jai your_main_file.jai +jaidoc -quiet --- import_dir ./jaidoc_plugin
+    ```
+
+*   **Verbose Mode (Detailed Debug Output):**
+    ```bash
+    jai your_main_file.jai +jaidoc -verbose --- import_dir ./jaidoc_plugin
+    ```

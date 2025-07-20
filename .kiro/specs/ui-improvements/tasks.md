@@ -84,14 +84,21 @@
     - Test that text selection is no longer interrupted
     - _Requirements: 3.3, 3.4_
 
-- [ ] 5. Add command line argument support for custom title
-  - [ ] 5.1 Update build.jai to parse custom title argument
+- [-] 5. Add command line argument support for custom title
+
+
+
+  - [x] 5.1 Update build.jai to parse custom title argument
+
+
     - Add parsing logic for -title command line argument
     - Pass custom title to Jaidoc_Options when provided
     - Maintain backward compatibility when no title is specified
     - _Requirements: 4.1, 4.2, 4.3_
 
   - [ ] 5.2 Update plugin integration to support title parameter
+
+
     - Modify jaidoc_processor.jai to handle title configuration
     - Ensure plugin mode can accept and use custom titles
     - Test integration with existing build scripts

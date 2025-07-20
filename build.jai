@@ -72,6 +72,17 @@ Command :: enum_flags u8 {
     } else {
         sample_jaidoc_options.log_level = .DEFAULT;
     }
+    
+    // Parse custom title if provided
+    for i: 0..args.count-1 {
+        if args[i] == "-title" && i + 1 < args.count {
+            sample_jaidoc_options.app_title = args[i + 1];
+            if sample_jaidoc_options.log_level == .VERBOSE {
+                print("Using custom title: %\n", sample_jaidoc_options.app_title);
+            }
+            break;
+        }
+    }
 
     commands := parse_commands(args);
     if sample_jaidoc_options.log_level == .VERBOSE print("Commands: %\n", commands);
@@ -153,7 +164,8 @@ Command :: enum_flags u8 {
 parse_commands :: (args: [] string) -> Command {
     commands: Command = 0;
     
-    for arg: args {
+    for i: 0..args.count-1 {
+        arg := args[i];
         if arg == {
             case "clean";
                 commands |= .CLEAN;
@@ -166,11 +178,19 @@ parse_commands :: (args: [] string) -> Command {
                 // Handled in main logic, ignore here
             case "-verbose";
                 // Handled in main logic, ignore here
+            case "-title";
+                // Skip the next argument as it's the title value
+                i += 1;
             case; // Default
                 if arg.count > 0 && arg[0] == #char "-" {
                     // This is a compiler flag, ignore it.
                 } else {
-                    print("Unrecognized command: %\n", arg);
+                    // Check if this is a title value (previous arg was -title)
+                    if i > 0 && args[i-1] == "-title" {
+                        // This is the title value, ignore it here
+                    } else {
+                        print("Unrecognized command: %\n", arg);
+                    }
                 }
         }
     }
