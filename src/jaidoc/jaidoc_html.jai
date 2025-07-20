@@ -972,7 +972,6 @@ generate_html_docs :: (options: JaidocTypes.Jaidoc_Options) {
     String.append(*js_builder, "      this.container.innerHTML = '';\n");
     String.append(*js_builder, "      this.currentIndex = -1;\n");
     String.append(*js_builder, "      this.results = [];\n");
-    String.append(*js_builder, "      this.input.focus();\n");
     String.append(*js_builder, "    };\n");
     String.append(*js_builder, "    \n");
     String.append(*js_builder, "    // Add mouse interaction support\n");
