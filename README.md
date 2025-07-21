@@ -4,6 +4,8 @@ A simple, powerful documentation generator for Jai codebases.
 
 `jaidoc` parses your source code and generates clean, easy-to-navigate documentation in Markdown format.
 
+![jaidoc-demo](./docs/jaidoc-demo3.webp)
+
 ## Usage
 
 You can use `jaidoc` in two primary ways: as a direct compiler plugin or integrated into your own metaprogram (e.g. `build.jai`).
@@ -103,6 +105,15 @@ JaidocProcessor :: #import, file "path/to/jaidoc_processor.jai";
 ### Output Directory
 
 By default, `jaidoc` generates documentation in the `target/docs/` directory relative to your project root. You can customize this by setting the `output_directory` field in the `Jaidoc_Options` struct during integration.
+
+### Custom Title
+
+To set the title in the upper left of the site to something custom instead of Jaidoc at the following param: `-title "My App Title"`
+
+Examples:
+
+- Plugin: `jai src/sample/sample.jai +jaidoc -verbose -title "My App Title"`
+- Metaprogram: `jai build.jai -quiet - clean build -title "My App Title"`
 
 ## Tips
 
