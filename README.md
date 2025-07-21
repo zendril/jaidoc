@@ -123,25 +123,19 @@ To prevent build artifacts from being committed to your repository, add the `tar
 target/
 ```
 
+## Extra resources
+
+You can see minimal versions of Jaidoc in action with these two repositories:
+
+- (https://github.com/zendril/jaidoc-sample-plugin)
+    Shows an application using it as a plugin
+- (https://github.com/zendril/jaidoc-sample-metaprogram)
+    Shows an application using it as a metaprogram
+
 ## Local Build/Usage
 
-If you are working on Jaidoc, the following commands will be helpful
+This repo has been setup so that if you are working on Jaidoc, it operates the same as if you were using Jaidoc as an end user. 
+Both the metaprogram instructions above and the plugin instructions above will work for this repo as well.
 
-### Compiler Plugin
-
-We need the extra `--- import_dir ./jaidoc_plugin` here. End users who pull this in as a module will not, because they will have it in their module path, but for our testing we do.
-
-*   **Default (Summary Output):**
-    ```bash
-    jai your_main_file.jai +jaidoc --- import_dir ./jaidoc_plugin
-    ```
-
-*   **Quiet Mode (No Summary):**
-    ```bash
-    jai your_main_file.jai +jaidoc -quiet --- import_dir ./jaidoc_plugin
-    ```
-
-*   **Verbose Mode (Detailed Debug Output):**
-    ```bash
-    jai your_main_file.jai +jaidoc -verbose --- import_dir ./jaidoc_plugin
-    ```
+To view the outputs, run a simple webserver against `target/docs`.
+Ex:`python -m http.server 8080 -d target\docs\`
