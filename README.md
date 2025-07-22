@@ -4,7 +4,7 @@ A simple, powerful documentation generator for Jai codebases.
 
 `jaidoc` parses your source code and generates clean, easy-to-navigate documentation in Markdown format.
 
-![jaidoc-demo](./docs/jaidoc-demo3.webp)
+![jaidoc-demo](https://raw.githubusercontent.com/zendril/jaidoc-assets/refs/heads/main/docs/jaidoc-demo3.webp)
 
 ## Usage
 
